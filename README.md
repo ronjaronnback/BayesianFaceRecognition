@@ -3,13 +3,10 @@
 
 Answers represent:
 
-NR  - "I did not recognise the person"
-
-C   - "I got it right"            
-
-TT  - "I got it wrong, but the correct name was “on the tip of my tongue”"
-
-RNN - "I recognised the person, but I could not remember their name"   
+- NR  - "I did not recognise the person"
+- C   - "I got it right"            
+- TT  - "I got it wrong, but the correct name was “on the tip of my tongue”"
+- RNN - "I recognised the person, but I could not remember their name"   
 
 
 This can be linked to the structure of the paper "Integrating predictive frameworks and cognitive models of face perception" (Trapp et al., 2018).
