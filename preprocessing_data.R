@@ -13,7 +13,10 @@ library(jsonlite)
 # PREPROCESSING
 # -----------------------------------------------------------------------------------------
 
-famous <- read.csv("/Users/ronjaronnback/Downloads/data/MindLabsFamousIndividuals.csv")
+# my R is doing weird things so set wd to whereever your files are here:
+setwd("/Users/ronjaronnback/Documents/GitHub/BayesianFaceRecognition")
+
+famous <- read.csv("data/MindLabsFamousIndividuals.csv")
 
 # Remove some columns that aren't of interest
 famous <- subset(famous, 
@@ -32,14 +35,6 @@ colnames(famous) <- as.character(unlist(famous[1,]))
 
 famous <- famous[-c(1,2), ]
 colnames(famous)[5] <- "Identifier"
-
-# Make column for number of recognized per participant
-famous$RightAnwers <- as.numeric(rowSums(famous == "I got it right"))
-famous$NotRecognizedAnwers <- as.numeric(rowSums(famous == "I did not recognise the person"))
-famous$ForgotName <- as.numeric(rowSums(famous == "I recognised the person, but I could not remember their name"))
-
-famous$TipOfTongue <- famous$RightAnwers + famous$NotRecognizedAnwers + famous$ForgotName
-famous$TipOfTongue <- 20 - famous$TipOfTongue
 
 # Change names of columns with identical names
 cols <- which(names(famous) == 'Celebrity ID:')
@@ -69,6 +64,11 @@ names(famous)<-str_replace_all(names(famous), c(" " = "." , "," = "", "-" = ""))
 df <- famous %>% dplyr:: select(grep("CelebrityID", names(famous)),
                                 #grep("TimePageSubmit", names(famous)), 
                                 grep("Did.You.Recognize", names(famous)))
+# add participant age (in 2018)
+#df$age <- famous$`How.old.are.you?..Please.write.your.answer.below:..Text`
+# df remove entries without age
+#df <- df[!df$age =="",]
+
 
 # recode answers to:
 # NR  - "I did not recognise the person"
@@ -81,14 +81,14 @@ df[df=="I got it right"] <- "C"
 df[df=="I got it wrong, but the correct name was “on the tip of my tongue”"] <- "TT"
 df[df=="I recognised the person, but I could not remember their name"] <- "RNN"
 
-#write.csv(df, "/Users/ronjaronnback/Documents/GitHub/BayesianFaceRecognition/fr_data.csv", row.names=FALSE)
+write.csv(df, "data/experiment_data.csv", row.names=FALSE)
 
 #-------------------------------------------------------------------------------
 # CELEBRITY JSON
 #-------------------------------------------------------------------------------
 
 # LINKING CELEBRITY INFO TO CELEBRITY RECOGNITION
-celebrities <- rjson::fromJSON(file = "/Users/ronjaronnback/Downloads/data/Celebrities.json")
+celebrities <- rjson::fromJSON(file = "data/Celebrities.json")
 celebrities <- data.table::rbindlist(celebrities, fill = TRUE)
 # make id column
 celebrities$en_curid <- as.factor(celebrities$en_curid)
@@ -96,23 +96,47 @@ celebrities$en_curid <- as.factor(celebrities$en_curid)
 names(celebrities)<-str_replace_all(names(celebrities), c(" " = "." , "," = "", "-" = ""))
 
 # get top X famous people identities
-X <- 50
-top_X <- celebrities %>%
+#X <- 50
+#top_X <- celebrities %>%
   #group_by(domain) %>%
-  top_n(n = 50, wt = TransformedTotalPageViews)
+#  top_n(n = 50, wt = TransformedTotalPageViews)
 # TAKE SUBSET OF INTEREST
 #top_X <- data.frame(top_X$name, top_X$domain)
 
 # save dfs
-write.csv(top_X, "/Users/ronjaronnback/Documents/GitHub/BayesianFaceRecognition/topX_celebrities", row.names=FALSE)
+#write.csv(top_X, "data/topX_celebrities", row.names=FALSE)
 
 #-------------------------------------------------------------------------------
 # COMBINE CELEBRITY JSON WITH DATA
 #-------------------------------------------------------------------------------
 
+small_celebrities <- celebrities[,c("en_curid","name","TotalPageViews")]
 
+outcome_df <- data.frame(en_curid=integer(),
+                         outcome=character(),
+                         name=character(),
+                         TotalPageViews=integer(),
+                         participant=integer())
 
+for(i in 1:nrow(df)) {       # for-loop over rows
+  # get participant id
+  participant <- as.numeric(rownames(df[i,])[1])
+  # get list of celebrity column names
+  celebrity_col_idx <- grep("CelebrityID", names(df))
+  # get list of answer column names
+  answer_col_idx <- grep("Did.You.Recognize", names(df))
+  # get celebrities
+  sample_celebrities <- cbind(t(df[i,celebrity_col_idx]),
+                              t(df[i,answer_col_idx]))
+  colnames(sample_celebrities) <- c("en_curid","outcome")
+  # merge into batch
+  batch <- merge(sample_celebrities,small_celebrities, by = "en_curid")
+  batch$participant <- rep(participant,nrow(batch))
+  # add to output dataframe
+  outcome_df <- rbind(outcome_df,batch)
+}
 
+outcome_df
 
-
-
+# save outcome df
+write.csv(outcome_df, "data/outcome_data.csv", row.names=FALSE)
