@@ -81,7 +81,7 @@ df[df=="I got it right"] <- "C"
 df[df=="I got it wrong, but the correct name was “on the tip of my tongue”"] <- "TT"
 df[df=="I recognised the person, but I could not remember their name"] <- "RNN"
 
-write.csv(df, "data/experiment_data.csv", row.names=FALSE)
+#write.csv(df, "data/experiment_data.csv", row.names=FALSE)
 
 #-------------------------------------------------------------------------------
 # CELEBRITY JSON
@@ -136,7 +136,24 @@ for(i in 1:nrow(df)) {       # for-loop over rows
   outcome_df <- rbind(outcome_df,batch)
 }
 
-outcome_df
+# clean up the participant column and add a trial column
+outcome_df <- outcome_df %>%
+  dplyr::arrange(participant) %>%
+  dplyr::group_by(participant) %>%
+  dplyr::mutate(participant = cur_group_id(),
+         trial_number = row_number())
+
+require(dplyr)
+outcome_df %>% group_by(participant) %>% summarise(trial_number = max(trial_number))
+t <- tapply(outcome_df$trial_number, outcome_df$participant, max)
+idx <- which(t < 20)
+# remove those participants with less than 20 trials
+outcome_df <- outcome_df[!(outcome_df$participant %in% idx),]
+# clean up the participant column again
+outcome_df <- outcome_df %>%
+  dplyr::arrange(participant) %>%
+  dplyr::group_by(participant) %>%
+  dplyr::mutate(participant = cur_group_id())
 
 # save outcome df
 write.csv(outcome_df, "data/outcome_data.csv", row.names=FALSE)
