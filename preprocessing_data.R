@@ -71,17 +71,17 @@ df <- famous %>% dplyr:: select(grep("CelebrityID", names(famous)),
 
 
 # recode answers to:
-# NR  - "I did not recognise the person"
-# C   - "I got it right"                            
-# TT  - "I got it wrong, but the correct name was “on the tip of my tongue”"
-# RNN - "I recognised the person, but I could not remember their name"   
+# NR  - 1 - "I did not recognise the person"
+# C   - 2 - "I got it right"                            
+# TT  - 3 - "I got it wrong, but the correct name was “on the tip of my tongue”"
+# RNN - 4 - "I recognised the person, but I could not remember their name"   
 
-df[df=="I did not recognise the person"] <- "NR"
-df[df=="I got it right"] <- "C"
-df[df=="I got it wrong, but the correct name was “on the tip of my tongue”"] <- "TT"
-df[df=="I recognised the person, but I could not remember their name"] <- "RNN"
+df[df=="I did not recognise the person"] <- 1 #"NR"
+df[df=="I got it right"] <- 2 # "C"
+df[df=="I got it wrong, but the correct name was “on the tip of my tongue”"] <- 3 # "TT"
+df[df=="I recognised the person, but I could not remember their name"] <- 4 # "RNN"
 
-#write.csv(df, "data/experiment_data.csv", row.names=FALSE)
+write.csv(df, "data/experiment_data.csv", row.names=FALSE)
 
 #-------------------------------------------------------------------------------
 # CELEBRITY JSON
@@ -154,6 +154,10 @@ outcome_df <- outcome_df %>%
   dplyr::arrange(participant) %>%
   dplyr::group_by(participant) %>%
   dplyr::mutate(participant = cur_group_id())
+
+# normalise TotalPageViews to 0-1
+scale_values <- function(x){(x-min(x))/(max(x)-min(x))}
+outcome_df$TotalPageViews <- scale_values(outcome_df$TotalPageViews)
 
 # save outcome df
 write.csv(outcome_df, "data/outcome_data.csv", row.names=FALSE)
