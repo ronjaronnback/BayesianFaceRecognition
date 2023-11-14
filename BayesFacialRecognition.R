@@ -104,11 +104,18 @@ exp_list_h <-  list(N_obs = nrow(exp),
 # get STAN model
 mpt_hierarch <- stan("HierarchicalFacial.stan", data = exp_list_h)
 
-print(fit_mpt_h,
+print(mpt_hierarch,
       pars = c("r", "tau_u_p", "alpha_p", "alpha_q", "beta_q"))
 
-
-
+# plot results
+as.data.frame(mpt_hierarch) %>%
+  select(c("tau_u_p", "alpha_p", "alpha_q", "beta_q", "r")) %>%
+  mcmc_recover_hist(true = c(tau_u_p, # might have to use what's below, ubt that's just the simulated data from the book so idk
+                             qlogis(p_true),
+                             alpha_q, 
+                             beta_q, 
+                             r_true)
+                    )  
 
 # redefine p_true probability as function of individual variance
 tau_u_p <- 1.1 # assume std of 1.1 for alphas
