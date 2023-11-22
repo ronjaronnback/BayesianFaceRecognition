@@ -113,7 +113,7 @@ traceplot(mpt_hierarch)
 
 # SCRIBBLES AND SCRABBLES ------------------------------------------------------
 
-# plot results -- NEED TO HAVE "TRUE" AVLUES, BUT FROM WHERE?
+# plot results -- NEED TO HAVE "TRUE" VALUES to do what the book does in Chap 18.2.4, BUT FROM WHERE?
 tau_u_p_true <- 1.1
 u_p <- rnorm(N_subj, 0, tau_u_p_true)
 p_true2 <- plogis(plogis(p_true) + u_p[exp$subj])#works with book so far
@@ -133,9 +133,6 @@ as.data.frame(mpt_hierarch) %>%
                              beta_q, 
                              r_true)
                     )
-
-
-
 
 # redefine p_true probability as function of individual variance
 tau_u_p <- 1.1 # assume std of 1.1 for alphas
@@ -162,9 +159,31 @@ theta_hierarch <- matrix(
 dim(theta_hierarch)
 
 
+# ------------------------------------------------------------------------------
+# TEST POSTERIOR PREDICTIVE CHECK 
+# ------------------------------------------------------------------------------
+
+# The argument of the matrix `drop` needs to be set to FALSE,
+# otherwise R will simplify the matrix into a vector.
+# The two commas in the line below are not a mistake!
+draws_par <- as.matrix(mpt_hierarch)[1:500, ,drop = FALSE]
+
+# get generative model
+gen_model <- rstan::get_stanmodel(mpt_hierarch)
+gen_mix_data <- rstan::gqs(gen_model,
+                           data = exp_list_h,
+                           draws = draws_par)
+# get preds from model
+outcome_pred <- extract(gen_mix_data)$pred_w_ans
+
+ppc_stat(exp_list_h$w_ans, # true
+         yrep = outcome_pred, # pred
+         stat = mean) 
 
 
-
+# CURSED - WE HAVE CATEG OUTCOMES, DON'T DO PPC_DENS_OVERLAY
+ppc_dens_overlay(y = exp_list_h$w_ans, yrep = outcome_pred[1:100,]) +
+  coord_cartesian(xlim = c(1, 5)) 
 
 
 # ------------------------------------------------------------------------------
