@@ -10,6 +10,7 @@ library(bayesplot)
 library(ggplot2)
 library(rstan)
 library(posterior)
+library(tictoc)
 rstan_options(auto_write = FALSE)
 
 
@@ -17,6 +18,7 @@ rstan_options(auto_write = FALSE)
 
 # just for ronja's laptop shenanigans
 #setwd("/Users/ronjaronnback/Documents/GitHub/BayesianFaceRecognition")
+setwd("C:/Users/louis/Documents/University/Master (TiU)/Year 2/Courses/BayesModels/Group_assign/BayesianFaceRecognition")
 data <-read.csv("data/outcome_data.csv")
 
 
@@ -110,6 +112,10 @@ print(mpt_hierarch,
 # see if we converged:
 traceplot(mpt_hierarch)
 
+# PRIOR PREDICTIVE CHECKS ------------------------------------------------------
+
+
+
 
 # SCRIBBLES AND SCRABBLES ------------------------------------------------------
 
@@ -184,6 +190,23 @@ ppc_stat(exp_list_h$w_ans, # true
 # CURSED - WE HAVE CATEG OUTCOMES, DON'T DO PPC_DENS_OVERLAY
 ppc_dens_overlay(y = exp_list_h$w_ans, yrep = outcome_pred[1:100,]) +
   coord_cartesian(xlim = c(1, 5)) 
+
+
+# another attempt at posterior predictive checks here 
+
+as.data.frame(mpt_hierarch) %>%
+  select(r, alpha_p, beta_p, alpha_q, beta_q, tau_u_p) %>%
+  mcmc_recover_hist(true = c(r_true, alpha_p_true, beta_p_true, alpha_q_true, beta_q_true, tau_u_p_true)) 
+
+# bar plot as posterior predictive check
+gen_data <- rstan::extract(mpt_hierarch)$pred_w_ans
+ppc_bars(exp$w_ans, gen_data) +
+  ggtitle ("Hierarchical model") 
+
+# same but grouped by subject, doesn't really look like anything now with this many subjects
+ppc_bars_grouped(exp$w_ans, 
+                 gen_data, group = exp$subj) +
+  ggtitle ("By-subject plot for the hierarchical model")
 
 
 # ------------------------------------------------------------------------------
