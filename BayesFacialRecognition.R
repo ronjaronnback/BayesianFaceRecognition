@@ -17,7 +17,8 @@ rstan_options(auto_write = FALSE)
 
 # just for ronja's laptop shenanigans
 #setwd("/Users/ronjaronnback/Documents/GitHub/BayesianFaceRecognition")
-data <-read.csv("data/outcome_data.csv")
+#data <-read.csv("data/outcome_data.csv")
+#data <-read.csv("outcome_data.csv")
 
 
 
@@ -61,6 +62,7 @@ Theta <- tibble(theta_NR,
 N_trials <- 200
 (ans <- rmultinom(1, N_trials, c(Theta)))
 
+
 # ------------------------------------------------------------------------------
 # BASE Stan Model --------------------------------------------------------------
 
@@ -95,51 +97,77 @@ N_obs <- N_item * N_subj
                complexity = data$TotalPageViews,
                w_ans = data$outcome)) 
 
+
+
+# Prior predictive check --------------------------------------------------
 # make list of our experiment data
-exp_list_h <-  list(N_obs = nrow(exp),
+exp_list_h <-  list(onlyprior = 1,
+                    N_obs = nrow(exp),
                     w_ans = exp$w_ans,
                     N_subj = max(exp$subj),
                     subj = exp$subj,
                     complexity = exp$complexity)
-# get STAN model
-mpt_hierarch <- stan("HierarchicalFacial.stan", data = exp_list_h)
+
+mpt_hierarch <- stan("HierarchicalFacial.stan", data = exp_list_h,
+                     control = list(adapt_delta = 0.9))
+
+
+
 
 print(mpt_hierarch,
-      pars = c("r", "tau_u_p", "alpha_p", "beta_p", "alpha_q", "beta_q"))
-
-# see if we converged:
-traceplot(mpt_hierarch)
-
-
-# SCRIBBLES AND SCRABBLES ------------------------------------------------------
-
-# plot results -- NEED TO HAVE "TRUE" VALUES to do what the book does in Chap 18.2.4, BUT FROM WHERE?
-tau_u_p_true <- 1.1
-u_p <- rnorm(N_subj, 0, tau_u_p_true)
-p_true2 <- plogis(plogis(p_true) + u_p[exp$subj])#works with book so far
-
-alpha_p_true <- 1
-beta_p_true <- 1
-
-
-alpha_q_true <- 1
-beta_q_true <- 1
+      pars = c("r", "tau_u_p", "alpha_p", "alpha_q", "beta_q", "beta_p"
+              ))
 
 as.data.frame(mpt_hierarch) %>%
-  select(c("tau_u_p", "alpha_p", "beta_p", "alpha_q", "beta_q", "r")) %>%
-  mcmc_recover_hist(true = c(tau_u_p,
-                             qlogis(p_true), # why q-logis? --> transforms probabilities to quantiles
-                             alpha_q, 
-                             beta_q, 
+  select(c( "alpha_p","alpha_q",  "r")) %>%
+  mcmc_recover_hist(true = c( # might have to use what's below, ubt that's just the simulated data from the book so idk
+    
+    qlogis(p_true),
+    qlogis(q_true),
+    
+    r_true)
+  )  
+
+# Train model on data -----------------------------------------------------
+
+# make list of our experiment data
+exp_list_h <-  list(onlyprior = 0,
+                    N_obs = nrow(exp),
+                    w_ans = exp$w_ans,
+                    N_subj = max(exp$subj),
+                    subj = exp$subj,
+                    complexity = exp$complexity)
+
+mpt_hierarch_posterior <- stan("HierarchicalFacial.stan", data = exp_list_h,
+                     control = list(adapt_delta = 0.9))
+print(mpt_hierarch,
+      pars = c("r", "tau_u_p", "alpha_p", "alpha_q", "beta_q", "beta_p"
+      ))
+
+print(mpt_hierarch,
+      pars = c("r", "tau_u_p", "alpha_p", "alpha_q", "beta_q"))
+
+
+
+# plot results
+as.data.frame(mpt_hierarch) %>%
+  select(c( "alpha_p","alpha_q",  "r")) %>%
+  mcmc_recover_hist(true = c( # might have to use what's below, ubt that's just the simulated data from the book so idk
+                             
+                              qlogis(p_true),
+                              qlogis(q_true),
+                              
                              r_true)
-                    )
+                    )  
+
+
 
 # redefine p_true probability as function of individual variance
 tau_u_p <- 1.1 # assume std of 1.1 for alphas
 u_p <- rnorm(N_subj, 0, tau_u_p)
 p_true <- plogis(plogis(p_true) + u_p[exp$subj])#works with book so far
 
-# redefine q_true probability as function of fame complexity intercept & slope
+# redefine q_true probability as function of fame complexity interept & slope
 alpha_q <- .6
 beta_q <- .2
 q_true <- plogis(alpha_q + exp$complexity * beta_q)
@@ -159,32 +187,25 @@ theta_hierarch <- matrix(
 dim(theta_hierarch)
 
 
-# ------------------------------------------------------------------------------
-# TEST POSTERIOR PREDICTIVE CHECK 
-# ------------------------------------------------------------------------------
-
-# The argument of the matrix `drop` needs to be set to FALSE,
-# otherwise R will simplify the matrix into a vector.
-# The two commas in the line below are not a mistake!
-draws_par <- as.matrix(mpt_hierarch)[1:500, ,drop = FALSE]
-
-# get generative model
-gen_model <- rstan::get_stanmodel(mpt_hierarch)
-gen_mix_data <- rstan::gqs(gen_model,
-                           data = exp_list_h,
-                           draws = draws_par)
-# get preds from model
-outcome_pred <- extract(gen_mix_data)$pred_w_ans
-
-ppc_stat(exp_list_h$w_ans, # true
-         yrep = outcome_pred, # pred
-         stat = mean) 
 
 
-# CURSED - WE HAVE CATEG OUTCOMES, DON'T DO PPC_DENS_OVERLAY
-ppc_dens_overlay(y = exp_list_h$w_ans, yrep = outcome_pred[1:100,]) +
-  coord_cartesian(xlim = c(1, 5)) 
+
 
 
 # ------------------------------------------------------------------------------
+# ADDED COMPLEXITY Stan Model --------------------------------------------------
+
+N_obs <- 50
+
+theta_NR_v <- rep(NotRecognised(p_true, q_true, r_true), N_obs)
+theta_C_v <- RecognisedAndNamed(p_true, q_true, r_true)
+theta_RNN_v <- RecognisedNotNamed(p_true, q_true, r_true)
+theta_RNN_v <- TipOfTongue(p_true, q_true, r_true)
+
+theta_item <- matrix(c(theta_NR_v,
+                       theta_C_v,
+                       theta_RNN_v,
+                       theta_RNN_v),
+                     ncol = 4)
+dim(theta_item)
 

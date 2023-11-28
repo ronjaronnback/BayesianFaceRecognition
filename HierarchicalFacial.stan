@@ -11,6 +11,10 @@ data {
   array[N_obs] real complexity;                       // famouness metric
   int<lower = 1> N_subj;                              // number subjects
   array[N_obs] int<lower = 1, upper = N_subj> subj;   // subject ID
+<<<<<<< Updated upstream
+=======
+  int<lower= 0, upper = 1> onlyprior;                 // checks prior predicion
+>>>>>>> Stashed changes
 }
 parameters {
   //real<lower = 0, upper = 1> p; // taken over by hierarchical
@@ -49,22 +53,35 @@ transformed parameters {
   }
 }
 model {
+<<<<<<< Updated upstream
   target += beta_lpdf(r | 2, 2); // no item or subject variation, so wide beta 
   target += normal_lpdf(alpha_p | 0, 1.5); //
   target += normal_lpdf(beta_p | 0, 1); // added
   target += normal_lpdf(alpha_q | 0, 1.5); //
   target += normal_lpdf(beta_q | 0, 1); //
+=======
+  
+  target += normal_lpdf(alpha_p | 0, 0.5); //
+  target += normal_lpdf(beta_p | 0, 0.5); // added
+  target += normal_lpdf(alpha_q | 0, 0.5); //
+  target += normal_lpdf(beta_q | 0, 0.5); //
+>>>>>>> Stashed changes
   
   // variance per subject
   target += normal_lpdf(u_p | 0, tau_u_p); //
   target += normal_lpdf(tau_u_p | 0, 1) - normal_lccdf(0 | 0, 1); // truncated
   
+<<<<<<< Updated upstream
   for(n in 1:N_obs)
     target +=  categorical_lpmf(w_ans[n] | theta[n]);
+=======
+  if (!onlyprior)
+    for(n in 1:N_obs)
+      target +=  categorical_lpmf(w_ans[n] | theta[n]);
+>>>>>>> Stashed changes
 }
 generated quantities{
   array[N_obs] int<lower = 1, upper = 4> pred_w_ans;
   for(n in 1:N_obs)
     pred_w_ans[n] = categorical_rng(theta[n]);
 }
-
