@@ -18,7 +18,7 @@ rstan_options(auto_write = FALSE)
 # just for ronja's laptop shenanigans
 #setwd("/Users/ronjaronnback/Documents/GitHub/BayesianFaceRecognition")
 #data <-read.csv("data/outcome_data.csv")
-#data <-read.csv("outcome_data.csv")
+data <-read.csv("outcome_data.csv")
 
 
 
@@ -112,8 +112,6 @@ mpt_hierarch <- stan("HierarchicalFacial.stan", data = exp_list_h,
                      control = list(adapt_delta = 0.9))
 
 
-
-
 print(mpt_hierarch,
       pars = c("r", "tau_u_p", "alpha_p", "alpha_q", "beta_q", "beta_p"
               ))
@@ -127,6 +125,25 @@ as.data.frame(mpt_hierarch) %>%
     
     r_true)
   )  
+#Plot generated outcomes
+ypred_w_ans <- rstan::extract(mpt_hierarch)$pred_w_ans
+ypred_w_ans_samples <- ypred_w_ans[1:50, ]
+categories <- table(ypred_w_ans_samples)
+
+barplot_result <- barplot(categories, main = "Outcomes - Prior Predictive Check", xlab = "Categories", ylab = "Frequency")
+text(x = barplot_result, y = categories + 1, labels = c("NR", "C", "RNN", "ToT"), pos = 1)
+
+#plot outcomes sampled from dataset
+y_outcomes_data <- data$outcome[1:50]
+categories_data <- table(y_outcomes_data)
+
+
+barplot_result <- barplot(categories, main = "Outcomes - From Data", xlab = "Categories", ylab = "Frequency")
+text(x = barplot_result, y = categories + 1, labels = c("NR", "C", "RNN", "ToT"), pos = 1)
+
+
+
+
 
 # Train model on data -----------------------------------------------------
 
