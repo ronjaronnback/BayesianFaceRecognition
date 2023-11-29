@@ -10,7 +10,7 @@ parameters {
 }
 transformed parameters {
   simplex[4] theta;
-  theta[1] = 1 - p; # NR
+  theta[1] = 1 - p; #NR
   theta[2] = p*q; #C
   theta[3] = p * (1 - q) * (1 - r); #RNN
   theta[4] = p * (1 - q) * r; #TT

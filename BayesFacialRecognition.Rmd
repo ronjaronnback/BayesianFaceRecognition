@@ -1,4 +1,15 @@
+---
+title: "BayesFacialRecognition"
+author: "Anita Vrins, Ronja Rönnback, Louis Sillekens"
+date: "2023-11-18"
+output: html_document
+---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r imports, include=FALSE}
 # Loading packages --------------------------------------------------------
 
 library(tidyr)
@@ -10,19 +21,18 @@ library(bayesplot)
 library(ggplot2)
 library(rstan)
 library(posterior)
-library(tictoc)
 rstan_options(auto_write = FALSE)
+```
 
-
+```{r load data, message=FALSE}
 # Load Data ---------------------------------------------------------------
 
 # just for ronja's laptop shenanigans
 #setwd("/Users/ronjaronnback/Documents/GitHub/BayesianFaceRecognition")
-setwd("C:/Users/louis/Documents/University/Master (TiU)/Year 2/Courses/BayesModels/Group_assign/BayesianFaceRecognition")
 data <-read.csv("data/outcome_data.csv")
+```
 
-
-
+```{r preprocessing, message=FALSE}
 # Find probabilities for each branch --------------------------------------
 value_counts <- table(data$outcome)
 value_counts 
@@ -45,7 +55,6 @@ RecognisedNotNamed <- function(p,q,r) #RNN
 TipOfTongue <- function(p,q,r) #TT
   p * (1 - q) * r
 
-
 # Creating a Dataframe -------------------------------------------------
 
 theta_NR <- NotRecognised(p_true, q_true, r_true)
@@ -62,8 +71,9 @@ Theta <- tibble(theta_NR,
 # generate values of a multinomial distribution of responses given Theta
 N_trials <- 200
 (ans <- rmultinom(1, N_trials, c(Theta)))
+```
 
-# ------------------------------------------------------------------------------
+```{r base model, message=FALSE}
 # BASE Stan Model --------------------------------------------------------------
 
 data_face <-  list(N_trials = N_trials,
@@ -82,9 +92,9 @@ as.data.frame(fit_face) %>%
   coord_cartesian(xlim = c(0, 1))
 
 print(fit_face, pars = c("theta")) # nice & close to the derived "true" values!
+```
 
-
-# ------------------------------------------------------------------------------
+```{r hierarchical model, message=FALSE}
 # HIERARCHICAL Stan Model --------------------------------------------------
 
 N_item <- 20 # number trials per subject
@@ -107,45 +117,24 @@ exp_list_h <-  list(N_obs = nrow(exp),
 mpt_hierarch <- stan("HierarchicalFacial.stan", data = exp_list_h)
 
 print(mpt_hierarch,
-      pars = c("r", "tau_u_p", "alpha_p", "beta_p", "alpha_q", "beta_q"))
+      pars = c("r", "tau_u_p", "alpha_p", "alpha_q", "beta_q"))
 
-# see if we converged:
-traceplot(mpt_hierarch)
-
-# PRIOR PREDICTIVE CHECKS ------------------------------------------------------
-
-
-
-
-# SCRIBBLES AND SCRABBLES ------------------------------------------------------
-
-# plot results -- NEED TO HAVE "TRUE" VALUES to do what the book does in Chap 18.2.4, BUT FROM WHERE?
-tau_u_p_true <- 1.1
-u_p <- rnorm(N_subj, 0, tau_u_p_true)
-p_true2 <- plogis(plogis(p_true) + u_p[exp$subj])#works with book so far
-
-alpha_p_true <- 1
-beta_p_true <- 1
-
-
-alpha_q_true <- 1
-beta_q_true <- 1
-
+# plot results
 as.data.frame(mpt_hierarch) %>%
-  select(c("tau_u_p", "alpha_p", "beta_p", "alpha_q", "beta_q", "r")) %>%
-  mcmc_recover_hist(true = c(tau_u_p,
-                             qlogis(p_true), # why q-logis? --> transforms probabilities to quantiles
+  select(c("tau_u_p", "alpha_p", "alpha_q", "beta_q", "r")) %>%
+  mcmc_recover_hist(true = c(tau_u_p, # might have to use what's below, ubt that's just the simulated data from the book so idk
+                             qlogis(p_true),
                              alpha_q, 
                              beta_q, 
                              r_true)
-                    )
+                    )  
 
 # redefine p_true probability as function of individual variance
 tau_u_p <- 1.1 # assume std of 1.1 for alphas
 u_p <- rnorm(N_subj, 0, tau_u_p)
 p_true <- plogis(plogis(p_true) + u_p[exp$subj])#works with book so far
 
-# redefine q_true probability as function of fame complexity intercept & slope
+# redefine q_true probability as function of fame complexity interept & slope
 alpha_q <- .6
 beta_q <- .2
 q_true <- plogis(alpha_q + exp$complexity * beta_q)
@@ -163,51 +152,22 @@ theta_hierarch <- matrix(
     theta_TT_hierarch),
   ncol = 4)
 dim(theta_hierarch)
+```
 
+```{r added complexity model, message=FALSE}
+# ADDED COMPLEXITY Stan Model --------------------------------------------------
 
-# ------------------------------------------------------------------------------
-# TEST POSTERIOR PREDICTIVE CHECK 
-# ------------------------------------------------------------------------------
+N_obs <- 50
 
-# The argument of the matrix `drop` needs to be set to FALSE,
-# otherwise R will simplify the matrix into a vector.
-# The two commas in the line below are not a mistake!
-draws_par <- as.matrix(mpt_hierarch)[1:500, ,drop = FALSE]
+theta_NR_v <- rep(NotRecognised(p_true, q_true, r_true), N_obs)
+theta_C_v <- RecognisedAndNamed(p_true, q_true, r_true)
+theta_RNN_v <- RecognisedNotNamed(p_true, q_true, r_true)
+theta_RNN_v <- TipOfTongue(p_true, q_true, r_true)
 
-# get generative model
-gen_model <- rstan::get_stanmodel(mpt_hierarch)
-gen_mix_data <- rstan::gqs(gen_model,
-                           data = exp_list_h,
-                           draws = draws_par)
-# get preds from model
-outcome_pred <- extract(gen_mix_data)$pred_w_ans
-
-ppc_stat(exp_list_h$w_ans, # true
-         yrep = outcome_pred, # pred
-         stat = mean) 
-
-
-# CURSED - WE HAVE CATEG OUTCOMES, DON'T DO PPC_DENS_OVERLAY
-ppc_dens_overlay(y = exp_list_h$w_ans, yrep = outcome_pred[1:100,]) +
-  coord_cartesian(xlim = c(1, 5)) 
-
-
-# another attempt at posterior predictive checks here 
-
-as.data.frame(mpt_hierarch) %>%
-  select(r, alpha_p, beta_p, alpha_q, beta_q, tau_u_p) %>%
-  mcmc_recover_hist(true = c(r_true, alpha_p_true, beta_p_true, alpha_q_true, beta_q_true, tau_u_p_true)) 
-
-# bar plot as posterior predictive check
-gen_data <- rstan::extract(mpt_hierarch)$pred_w_ans
-ppc_bars(exp$w_ans, gen_data) +
-  ggtitle ("Hierarchical model") 
-
-# same but grouped by subject, doesn't really look like anything now with this many subjects
-ppc_bars_grouped(exp$w_ans, 
-                 gen_data, group = exp$subj) +
-  ggtitle ("By-subject plot for the hierarchical model")
-
-
-# ------------------------------------------------------------------------------
-
+theta_item <- matrix(c(theta_NR_v,
+                       theta_C_v,
+                       theta_RNN_v,
+                       theta_RNN_v),
+                     ncol = 4)
+dim(theta_item)
+```
