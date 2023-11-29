@@ -117,6 +117,28 @@ traceplot(mpt_hierarch)
 
 
 
+# ------------------------------------------------------------------------------
+# TEST POSTERIOR PREDICTIVE CHECK 
+# ------------------------------------------------------------------------------
+
+# another attempt at posterior predictive checks here 
+as.data.frame(mpt_hierarch) %>%
+  select(r, alpha_p, beta_p, alpha_q, beta_q, tau_u_p) %>%
+  mcmc_recover_hist(true = c(r_true, alpha_p_true, beta_p_true, alpha_q_true, beta_q_true, tau_u_p_true)) 
+
+# bar plot as posterior predictive check
+gen_data <- rstan::extract(mpt_hierarch)$pred_w_ans
+ppc_bars(exp$w_ans, gen_data) +
+  ggtitle ("Hierarchical model") 
+
+# same but grouped by subject, doesn't really look like anything now with this many subjects
+ppc_bars_grouped(exp$w_ans, 
+                 gen_data, group = exp$subj) +
+  ggtitle ("By-subject plot for the hierarchical model")
+
+
+# ------------------------------------------------------------------------------
+
 # SCRIBBLES AND SCRABBLES ------------------------------------------------------
 
 # plot results -- NEED TO HAVE "TRUE" VALUES to do what the book does in Chap 18.2.4, BUT FROM WHERE?
@@ -138,7 +160,7 @@ as.data.frame(mpt_hierarch) %>%
                              alpha_q, 
                              beta_q, 
                              r_true)
-                    )
+  )
 
 # redefine p_true probability as function of individual variance
 tau_u_p <- 1.1 # assume std of 1.1 for alphas
@@ -165,10 +187,7 @@ theta_hierarch <- matrix(
 dim(theta_hierarch)
 
 
-# ------------------------------------------------------------------------------
-# TEST POSTERIOR PREDICTIVE CHECK 
-# ------------------------------------------------------------------------------
-
+# RONJA'S CURSED POSTERIOR CHECK, IGNORE FOR NOW
 # The argument of the matrix `drop` needs to be set to FALSE,
 # otherwise R will simplify the matrix into a vector.
 # The two commas in the line below are not a mistake!
@@ -191,23 +210,4 @@ ppc_stat(exp_list_h$w_ans, # true
 ppc_dens_overlay(y = exp_list_h$w_ans, yrep = outcome_pred[1:100,]) +
   coord_cartesian(xlim = c(1, 5)) 
 
-
-# another attempt at posterior predictive checks here 
-
-as.data.frame(mpt_hierarch) %>%
-  select(r, alpha_p, beta_p, alpha_q, beta_q, tau_u_p) %>%
-  mcmc_recover_hist(true = c(r_true, alpha_p_true, beta_p_true, alpha_q_true, beta_q_true, tau_u_p_true)) 
-
-# bar plot as posterior predictive check
-gen_data <- rstan::extract(mpt_hierarch)$pred_w_ans
-ppc_bars(exp$w_ans, gen_data) +
-  ggtitle ("Hierarchical model") 
-
-# same but grouped by subject, doesn't really look like anything now with this many subjects
-ppc_bars_grouped(exp$w_ans, 
-                 gen_data, group = exp$subj) +
-  ggtitle ("By-subject plot for the hierarchical model")
-
-
-# ------------------------------------------------------------------------------
 
