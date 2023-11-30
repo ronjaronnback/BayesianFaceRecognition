@@ -119,11 +119,62 @@ N_item <- 20 # number trials per subject
 N_subj <- 176 # number of subjects
 N_obs <- N_item * N_subj 
 
+subj <- rep(1:N_subj, each = N_item)
+trial_number <- rep(1:N_item, time = N_subj)
+# make approximate distribution for complexity (fameousness)
+# POTENTIALLY HAVE TO SOMEHOW BOUND IT BETWEEN 0-1
+complexity <- rep(rlnorm(N_item, meanlog = 0, sdlog = 1), times = N_subj)
+
+# define simulated true parameters
+r_true <- 0.23
+
+tau_u_p <- 1.1
+u_p <- rnorm(N_subj, 0, tau_u_p)
+p_true_u <- plogis(qlogis(p_true) + u_p[subj]) 
+alpha_p <- 0.5
+beta_p <- 0.5
+p_true <- plogis(alpha_p + p_true_u + complexity*beta_p)
+
+alpha_q <- 0.5
+beta_q <- 0.5
+q_true <- plogis(alpha_q + complexity * beta_q)
+
+theta_NR <- NotRecognised(p_true, q_true, r_true)
+theta_C <- RecognisedAndNamed(p_true, q_true, r_true)
+theta_RNN <- RecognisedNotNamed(p_true, q_true, r_true)
+theta_TT <- TipOfTongue(p_true, q_true, r_true)
+
+# generate data vector of probabilities
+theta_h <- matrix(
+  c(theta_NR,
+    theta_C,
+    theta_RNN,
+    theta_TT),
+  ncol = 4)
+
+# generate values of a multinomial distribution of responses given Theta
+(ans <- rcat(N_obs,theta_h))
+
 # make tibble of our real data
-(sim_exp <- tibble(subj = data$participant,
-               item = data$trial_number,
-               complexity = data$TotalPageViews,
-               w_ans = data$outcome)) 
+(sim_exp <- tibble(subj = subj,
+                   item = trial_number,
+                   complexity = complexity,
+                   w_ans = ans)) 
+
+# make list of our experiment data
+sim_exp_list <-  list(N_obs = nrow(sim_exp),
+                    w_ans = sim_exp$w_ans,
+                    N_subj = max(sim_exp$subj),
+                    subj = sim_exp$subj,
+                    complexity = sim_exp$complexity)
+# get STAN model
+mpt_hierarch_sim <- stan("HierarchicalFacial.stan", data = sim_exp_list)
+
+print(mpt_hierarch_sim,
+      pars = c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
+
+# see if we converged:
+traceplot(mpt_hierarch_sim, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
 
 
 # PRIOR PREDICTIVE CHECKS ------------------------------------------------------
