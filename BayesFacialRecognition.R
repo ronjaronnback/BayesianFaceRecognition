@@ -112,6 +112,20 @@ print(mpt_hierarch,
 # see if we converged:
 traceplot(mpt_hierarch, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
 
+# ------------------------------------------------------------------------------
+# HIERARCHICAL Stan Model WITH SIMULATED DATA ----------------------------------
+
+N_item <- 20 # number trials per subject
+N_subj <- 176 # number of subjects
+N_obs <- N_item * N_subj 
+
+# make tibble of our real data
+(sim_exp <- tibble(subj = data$participant,
+               item = data$trial_number,
+               complexity = data$TotalPageViews,
+               w_ans = data$outcome)) 
+
+
 # PRIOR PREDICTIVE CHECKS ------------------------------------------------------
 
 
