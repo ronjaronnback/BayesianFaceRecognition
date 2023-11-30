@@ -18,7 +18,7 @@ rstan_options(auto_write = FALSE)
 
 # just for ronja's laptop shenanigans
 #setwd("/Users/ronjaronnback/Documents/GitHub/BayesianFaceRecognition")
-setwd("C:/Users/louis/Documents/University/Master (TiU)/Year 2/Courses/BayesModels/Group_assign/BayesianFaceRecognition")
+#setwd("C:/Users/louis/Documents/University/Master (TiU)/Year 2/Courses/BayesModels/Group_assign/BayesianFaceRecognition")
 data <-read.csv("data/outcome_data.csv")
 
 
@@ -107,10 +107,10 @@ exp_list_h <-  list(N_obs = nrow(exp),
 mpt_hierarch <- stan("HierarchicalFacial.stan", data = exp_list_h)
 
 print(mpt_hierarch,
-      pars = c("r", "tau_u_p", "alpha_p", "beta_p", "alpha_q", "beta_q"))
+      pars = c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
 
 # see if we converged:
-traceplot(mpt_hierarch)
+traceplot(mpt_hierarch, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
 
 # PRIOR PREDICTIVE CHECKS ------------------------------------------------------
 
