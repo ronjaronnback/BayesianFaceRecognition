@@ -10,6 +10,7 @@ library(bayesplot)
 library(ggplot2)
 library(rstan)
 library(posterior)
+library(tictoc)
 rstan_options(auto_write = FALSE)
 
 
@@ -17,8 +18,13 @@ rstan_options(auto_write = FALSE)
 
 # just for ronja's laptop shenanigans
 #setwd("/Users/ronjaronnback/Documents/GitHub/BayesianFaceRecognition")
+
 #data <-read.csv("data/outcome_data.csv")
 data <-read.csv("outcome_data.csv")
+
+#setwd("C:/Users/louis/Documents/University/Master (TiU)/Year 2/Courses/BayesModels/Group_assign/BayesianFaceRecognition")
+data <-read.csv("data/outcome_data.csv")
+
 
 
 
@@ -113,8 +119,70 @@ mpt_hierarch <- stan("HierarchicalFacial.stan", data = exp_list_h,
 
 
 print(mpt_hierarch,
+
       pars = c("r", "tau_u_p", "alpha_p", "alpha_q", "beta_q", "beta_p"
               ))
+
+      pars = c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
+
+# see if we converged:
+traceplot(mpt_hierarch, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
+
+# ------------------------------------------------------------------------------
+# HIERARCHICAL Stan Model WITH SIMULATED DATA ----------------------------------
+
+N_item <- 20 # number trials per subject
+N_subj <- 176 # number of subjects
+N_obs <- N_item * N_subj 
+
+# make tibble of our real data
+(sim_exp <- tibble(subj = data$participant,
+               item = data$trial_number,
+               complexity = data$TotalPageViews,
+               w_ans = data$outcome)) 
+
+
+# PRIOR PREDICTIVE CHECKS ------------------------------------------------------
+
+
+
+
+# ------------------------------------------------------------------------------
+# TEST POSTERIOR PREDICTIVE CHECK 
+# ------------------------------------------------------------------------------
+
+# another attempt at posterior predictive checks here 
+as.data.frame(mpt_hierarch) %>%
+  select(r, alpha_p, beta_p, alpha_q, beta_q, tau_u_p) %>%
+  mcmc_recover_hist(true = c(r_true, alpha_p_true, beta_p_true, alpha_q_true, beta_q_true, tau_u_p_true)) 
+
+# bar plot as posterior predictive check
+gen_data <- rstan::extract(mpt_hierarch)$pred_w_ans
+ppc_bars(exp$w_ans, gen_data) +
+  ggtitle ("Hierarchical model") 
+
+# same but grouped by subject, doesn't really look like anything now with this many subjects
+ppc_bars_grouped(exp$w_ans, 
+                 gen_data, group = exp$subj) +
+  ggtitle ("By-subject plot for the hierarchical model")
+
+
+# ------------------------------------------------------------------------------
+
+# SCRIBBLES AND SCRABBLES ------------------------------------------------------
+
+# plot results -- NEED TO HAVE "TRUE" VALUES to do what the book does in Chap 18.2.4, BUT FROM WHERE?
+tau_u_p_true <- 1.1
+u_p <- rnorm(N_subj, 0, tau_u_p_true)
+p_true2 <- plogis(plogis(p_true) + u_p[exp$subj])#works with book so far
+
+alpha_p_true <- 1
+beta_p_true <- 1
+
+
+alpha_q_true <- 1
+beta_q_true <- 1
+
 
 as.data.frame(mpt_hierarch) %>%
   select(c( "alpha_p","alpha_q",  "r")) %>%
@@ -175,8 +243,11 @@ as.data.frame(mpt_hierarch) %>%
                               qlogis(q_true),
                               
                              r_true)
+
                     )  
 
+
+  )
 
 
 # redefine p_true probability as function of individual variance
@@ -205,6 +276,25 @@ dim(theta_hierarch)
 
 
 
+# RONJA'S CURSED POSTERIOR CHECK, IGNORE FOR NOW
+# The argument of the matrix `drop` needs to be set to FALSE,
+# otherwise R will simplify the matrix into a vector.
+# The two commas in the line below are not a mistake!
+draws_par <- as.matrix(mpt_hierarch)[1:500, ,drop = FALSE]
+
+# get generative model
+gen_model <- rstan::get_stanmodel(mpt_hierarch)
+gen_mix_data <- rstan::gqs(gen_model,
+                           data = exp_list_h,
+                           draws = draws_par)
+# get preds from model
+outcome_pred <- extract(gen_mix_data)$pred_w_ans
+
+ppc_stat(exp_list_h$w_ans, # true
+         yrep = outcome_pred, # pred
+         stat = mean) 
+
+
 
 
 
@@ -225,4 +315,5 @@ theta_item <- matrix(c(theta_NR_v,
                        theta_RNN_v),
                      ncol = 4)
 dim(theta_item)
+
 
