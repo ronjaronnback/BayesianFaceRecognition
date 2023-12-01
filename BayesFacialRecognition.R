@@ -185,25 +185,26 @@ exp_list_h <-  list(onlyprior = 1,
                     subj = exp$subj,
                     complexity = exp$complexity)
 
-mpt_hierarch <- stan("HierarchicalFacial.stan", data = exp_list_h,
+mpt_hierarch_prior <- stan("HierarchicalFacial.stan", data = exp_list_h,
                      control = list(adapt_delta = 0.9))
 
 
-print(mpt_hierarch,
-
-      pars = c("r", "tau_u_p", "alpha_p", "alpha_q", "beta_q", "beta_p"))
-
+print(mpt_hierarch_prior,#pars = c("r", "tau_u_p", "alpha_p", "alpha_q", "beta_q", "beta_p")) # i think this is old? lemme know if not
       pars = c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
 
+#           mean se_mean   sd  2.5%   25%   50%  75% 97.5% n_eff Rhat
+# r         0.50    0.00 0.22  0.10  0.33  0.50 0.67  0.90  5964    1
+# tau_u[1]  0.80    0.01 0.61  0.04  0.32  0.65 1.16  2.24  6130    1
+# alpha_p   0.01    0.02 1.47 -2.93 -0.94  0.03 0.99  2.93  7291    1
+# beta_p   -0.03    0.01 1.03 -2.07 -0.71  0.00 0.67  1.96  5511    1
+# alpha_q  -0.01    0.02 1.47 -2.90 -0.98 -0.03 0.96  2.84  6585    1
+# beta_q   -0.01    0.01 0.99 -1.90 -0.68 -0.01 0.65  1.96  6312    1
+
 # see if we converged:
-traceplot(mpt_hierarch, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
+traceplot(mpt_hierarch_prior, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
 
 
 # HIERARCHICAL Stan Model WITH REAL DATA ---------------------------------------
-
-N_item <- 20 # number trials per subject
-N_subj <- 176 # number of subjects
-N_obs <- N_item * N_subj 
 
 # make tibble of our real data
 (exp <- tibble(subj = data$participant,
