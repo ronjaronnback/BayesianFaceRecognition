@@ -121,12 +121,12 @@ r_true <- 0.23
 tau_u_p <- 1.1
 u_p <- rnorm(N_subj, 0, tau_u_p)
 p_true_u <- plogis(qlogis(p_true) + u_p[subj]) 
-alpha_p <- 0.5
-beta_p <- 0.5
+alpha_p <- 0
+beta_p <- 1
 p_true <- plogis(alpha_p + p_true_u + complexity*beta_p)
 
-alpha_q <- 0.5
-beta_q <- 0.5
+alpha_q <- 0
+beta_q <- 1
 q_true <- plogis(alpha_q + complexity * beta_q)
 
 theta_NR <- NotRecognised(p_true, q_true, r_true)
