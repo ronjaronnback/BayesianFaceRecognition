@@ -174,7 +174,8 @@ traceplot(mpt_hierarch_sim, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q",
 # posterior predictive checks for simulated data
 as.data.frame(mpt_hierarch_sim) %>%
   select(r, alpha_p, beta_p, alpha_q, beta_q) %>%
-  mcmc_recover_hist(true = c(r_true, alpha_p, beta_p, alpha_q, beta_q)) 
+  mcmc_recover_hist(true = c(r_true, alpha_p, beta_p, alpha_q, beta_q))  +
+  coord_cartesian(xlim = c(0, 1))
 
 # Prior predictive check with REAL DATA ----------------------------------------
 # make list of our experiment data
@@ -234,7 +235,8 @@ traceplot(mpt_hierarch, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "be
 # another attempt at posterior predictive checks here 
 as.data.frame(mpt_hierarch) %>%
   select(r, alpha_p, beta_p, alpha_q, beta_q, tau_u_p) %>%
-  mcmc_recover_hist(true = c(r_true, alpha_p_true, beta_p_true, alpha_q_true, beta_q_true, tau_u_p_true)) 
+  mcmc_recover_hist(true = c(r_true, alpha_p_true, beta_p_true, alpha_q_true, beta_q_true, tau_u_p_true))   +
+  coord_cartesian(xlim = c(0, 1))
 
 # bar plot as posterior predictive check
 gen_data <- rstan::extract(mpt_hierarch)$pred_w_ans
