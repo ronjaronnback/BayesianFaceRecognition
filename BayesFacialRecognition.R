@@ -13,6 +13,8 @@ library(posterior)
 library(tictoc)
 rstan_options(auto_write = FALSE)
 
+# define min-max scaling function for later
+min_max_scale <- function(x){(x-min(x))/(max(x) - min(x))}
 
 # Load Data ---------------------------------------------------------------
 
@@ -25,7 +27,8 @@ rstan_options(auto_write = FALSE)
 #setwd("C:/Users/louis/Documents/University/Master (TiU)/Year 2/Courses/BayesModels/Group_assign/BayesianFaceRecognition")
 data <-read.csv("data/outcome_data.csv")
 
-
+# center and min-max scale data
+data$C_TotalPageViews <- min_max_scale(data$TotalPageViews) - 0.5
 
 # ==============================================================================
 # BASE Stan Model 
@@ -46,24 +49,24 @@ NotRecognised <-function(p,q,r) # NR
 RecognisedAndNamed <-function(p,q,r) #C
   p * q
 
-RecognisedNotNamed <- function(p,q,r) #RNN
-  p * (1 - q) * (1 - r)
-
 TipOfTongue <- function(p,q,r) #TT
   p * (1 - q) * r
+
+RecognisedNotNamed <- function(p,q,r) #RNN
+  p * (1 - q) * (1 - r)
 
 # Creating a Dataframe -------------------------------------------------
 
 theta_NR <- NotRecognised(p_true, q_true, r_true)
 theta_C <- RecognisedAndNamed(p_true, q_true, r_true)
-theta_RNN <- RecognisedNotNamed(p_true, q_true, r_true)
 theta_TT <- TipOfTongue(p_true, q_true, r_true)
+theta_RNN <- RecognisedNotNamed(p_true, q_true, r_true)
 
 # generate data vector of probabilities
 Theta <- tibble(theta_NR,
     theta_C,
-    theta_RNN,
-    theta_TT)
+    theta_TT,
+    theta_RNN)
 
 # generate values of a multinomial distribution of responses given Theta
 N_trials <- 200
@@ -95,19 +98,13 @@ N_item <- 20 # number trials per subject
 N_subj <- 176 # number of subjects
 N_obs <- N_item * N_subj 
 
-# make tibble of our real data
-(exp <- tibble(subj = data$participant,
-               item = data$trial_number,
-               complexity = data$TotalPageViews,
-               w_ans = data$outcome)) 
-
 # HIERARCHICAL Stan Model WITH SIMULATED DATA ----------------------------------
 
 subj <- rep(1:N_subj, each = N_item)
 trial_number <- rep(1:N_item, time = N_subj)
-# make approximate distribution for complexity (fameousness)
-# POTENTIALLY HAVE TO SOMEHOW BOUND IT BETWEEN 0-1
-complexity <- rep(rlnorm(N_item, meanlog = 0, sdlog = 1), times = N_subj)
+# make approximate distribution for complexity (fameousness) and center it
+complexity <- min_max_scale(scale(rep(rlnorm(N_item, meanlog = 0, sdlog = 1), 
+                                      times = N_subj),center=TRUE)) - 0.5
 
 # define simulated true parameters
 r_true <- 0.23
@@ -115,25 +112,25 @@ r_true <- 0.23
 tau_u_p <- 1.1
 u_p <- rnorm(N_subj, 0, tau_u_p)
 p_true_u <- plogis(qlogis(p_true) + u_p[subj]) 
-alpha_p <- 0.5
-beta_p <- 0.5
+alpha_p <- 0
+beta_p <- 1
 p_true <- plogis(alpha_p + p_true_u + complexity*beta_p)
 
-alpha_q <- 0.5
-beta_q <- 0.5
+alpha_q <- 0
+beta_q <- 1
 q_true <- plogis(alpha_q + complexity * beta_q)
 
 theta_NR <- NotRecognised(p_true, q_true, r_true)
 theta_C <- RecognisedAndNamed(p_true, q_true, r_true)
-theta_RNN <- RecognisedNotNamed(p_true, q_true, r_true)
 theta_TT <- TipOfTongue(p_true, q_true, r_true)
+theta_RNN <- RecognisedNotNamed(p_true, q_true, r_true)
 
 # generate data vector of probabilities
 theta_h <- matrix(
   c(theta_NR,
     theta_C,
-    theta_RNN,
-    theta_TT),
+    theta_TT,
+    theta_RNN),
   ncol = 4)
 
 # generate values of a categorical distribution of responses given Theta
@@ -159,13 +156,7 @@ print(mpt_hierarch_sim,
       pars = c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
 # OUT: 
 #          mean se_mean   sd 2.5%  25%  50%  75% 97.5% n_eff Rhat
-# r        0.23       0 0.02 0.20 0.22 0.23 0.25  0.27  4791    1
-# tau_u[1] 0.12       0 0.08 0.01 0.06 0.11 0.17  0.29   973    1
-# alpha_p  1.03       0 0.07 0.90 0.98 1.03 1.08  1.17  2879    1
-# beta_p   0.49       0 0.06 0.38 0.45 0.49 0.53  0.61  2821    1
-# alpha_q  0.57       0 0.06 0.45 0.53 0.58 0.62  0.70  3098    1
-# beta_q   0.49       0 0.05 0.40 0.46 0.49 0.53  0.60  3414    1
-
+# 
 # parameter recovery pretty good! Only alpha_p different
 
 # see if we converged: Looks good!
@@ -174,10 +165,16 @@ traceplot(mpt_hierarch_sim, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q",
 # posterior predictive checks for simulated data
 as.data.frame(mpt_hierarch_sim) %>%
   select(r, alpha_p, beta_p, alpha_q, beta_q) %>%
-  mcmc_recover_hist(true = c(r_true, alpha_p, beta_p, alpha_q, beta_q))  +
-  coord_cartesian(xlim = c(0, 1))
+  mcmc_recover_hist(true = c(r_true, alpha_p, beta_p, alpha_q, beta_q))
 
 # Prior predictive check with REAL DATA ----------------------------------------
+
+# make tibble of our real data
+(exp <- tibble(subj = data$participant,
+               item = data$trial_number,
+               complexity = data$C_TotalPageViews,
+               w_ans = data$outcome))
+
 # make list of our experiment data
 exp_list_h <-  list(onlyprior = 1,
                     N_obs = nrow(exp),
@@ -190,7 +187,7 @@ mpt_hierarch_prior <- stan("HierarchicalFacial.stan", data = exp_list_h,
                      control = list(adapt_delta = 0.9))
 
 
-print(mpt_hierarch_prior,#pars = c("r", "tau_u_p", "alpha_p", "alpha_q", "beta_q", "beta_p")) # i think this is old? lemme know if not
+print(mpt_hierarch_prior,
       pars = c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
 
 #           mean se_mean   sd  2.5%   25%   50%  75% 97.5% n_eff Rhat
@@ -210,7 +207,7 @@ traceplot(mpt_hierarch_prior, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q
 # make tibble of our real data
 (exp <- tibble(subj = data$participant,
                item = data$trial_number,
-               complexity = data$TotalPageViews,
+               complexity = data$C_TotalPageViews,
                w_ans = data$outcome)) 
 
 # make list of our experiment data
@@ -235,8 +232,8 @@ traceplot(mpt_hierarch, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "be
 # another attempt at posterior predictive checks here 
 as.data.frame(mpt_hierarch) %>%
   select(r, alpha_p, beta_p, alpha_q, beta_q, tau_u_p) %>%
-  mcmc_recover_hist(true = c(r_true, alpha_p_true, beta_p_true, alpha_q_true, beta_q_true, tau_u_p_true))   +
-  coord_cartesian(xlim = c(0, 1))
+  mcmc_recover_hist(true = c(r_true, alpha_p_true, beta_p_true, 
+                             alpha_q_true, beta_q_true, tau_u_p_true))
 
 # bar plot as posterior predictive check
 gen_data <- rstan::extract(mpt_hierarch)$pred_w_ans
