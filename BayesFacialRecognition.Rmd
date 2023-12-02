@@ -184,9 +184,7 @@ traceplot(mpt_hierarch_sim, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q",
 # posterior predictive checks for simulated data
 as.data.frame(mpt_hierarch_sim) %>%
   select(r, alpha_p, beta_p, alpha_q, beta_q) %>%
-  mcmc_recover_hist(true = c(r_true, alpha_p, beta_p, alpha_q, beta_q)) +
-  coord_cartesian(xlim = c(0, 1.5))
-
+  mcmc_recover_hist(true = c(r_true, alpha_p, beta_p, alpha_q, beta_q))
 ```
 
 It looks like we converge, and recover the parameters quite well, with the exception of alpha_p.
