@@ -5,12 +5,19 @@ date: "2023-11-18"
 output: html_document
 ---
 
+# Bayesian Modelling of Cognitive Processes Group Project
+
+## Facial Recognition of Public Figures
+By Anita Vrins, Ronja Ronnback, and Louis Sillekens
+
+In this rmarkdown document the code of our project is located. Some comments exist, but for a better explanation read our separate report.
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
 # set the working directory here for the entire notebook
- knitr::opts_knit$set(root.dir = ("/Users/ronjaronnback/Documents/GitHub/BayesianFaceRecognition"))
-#knitr::opts_knit$set(root.dir = '("C:/Users/louis/Documents/University/Master (TiU)/Year 2/Courses/BayesModels/FacialRec/BayesianFaceRecognition')
+#knitr::opts_knit$set(root.dir = ("/Users/ronjaronnback/Documents/GitHub/BayesianFaceRecognition"))
+ knitr::opts_knit$set(root.dir = '("C:/Users/louis/Documents/University/Master (TiU)/Year 2/Courses/BayesModels/FacialRec/BayesianFaceRecognition')
 ```
 
 ```{r imports, include=FALSE, echo=FALSE}
@@ -28,14 +35,13 @@ library(posterior)
 rstan_options(auto_write = FALSE)
 ```
 
+### Load the data
 ```{r load data, message=FALSE}
 # Load Data ---------------------------------------------------------------
 data <-read.csv("data/outcome_data.csv")
 ```
 
-# Base Multinomial Processing Tree Model 
-
-
+### Base Multinomial Processing Tree Model 
 ```{r preprocessing, message=FALSE}
 # Find probabilities for each branch --------------------------------------
 value_counts <- table(data$outcome)
@@ -69,14 +75,14 @@ theta_TT <- TipOfTongue(p_true, q_true, r_true)
 # generate data vector of probabilities
 Theta <- tibble(theta_NR,
     theta_C,
-    theta_RNN,
-    theta_TT)
+    theta_TT,
+    theta_RNN)
 
 # generate values of a multinomial distribution of responses given Theta
 N_trials <- 200
 (ans <- rmultinom(1, N_trials, c(Theta)))
 ```
-## Fit model
+#### Fit model
 ```{r base model, message=FALSE}
 # BASE Stan Model --------------------------------------------------------------
 
@@ -97,8 +103,7 @@ as.data.frame(fit_face) %>%
 
 print(fit_face, pars = c("theta")) # nice & close to the derived "true" values!
 ```
-# Hierarchical Multinomial Processing Tree Model ON SIMULATED DATA
-
+### Hierarchical Multinomial Processing Tree Model ON SIMULATED DATA
 ```{r simulated data preparation, message=FALSE}
 N_item <- 20 # number trials per subject
 N_subj <- 176 # number of subjects
@@ -106,7 +111,7 @@ N_obs <- N_item * N_subj
 
 subj <- rep(1:N_subj, each = N_item)
 trial_number <- rep(1:N_item, time = N_subj)
-# make approximate distribution for complexity (fameousness)
+# make approximate distribution for complexity (famousness)
 # POTENTIALLY HAVE TO SOMEHOW BOUND IT BETWEEN 0-1
 complexity <- rep(rlnorm(N_item, meanlog = 0, sdlog = 1), times = N_subj)
 
@@ -126,15 +131,15 @@ q_true <- plogis(alpha_q + complexity * beta_q)
 
 theta_NR <- NotRecognised(p_true, q_true, r_true)
 theta_C <- RecognisedAndNamed(p_true, q_true, r_true)
-theta_RNN <- RecognisedNotNamed(p_true, q_true, r_true)
 theta_TT <- TipOfTongue(p_true, q_true, r_true)
+theta_RNN <- RecognisedNotNamed(p_true, q_true, r_true)
 
 # generate data vector of probabilities
 theta_h <- matrix(
   c(theta_NR,
     theta_C,
-    theta_RNN,
-    theta_TT),
+    theta_TT,
+    theta_RNN),
   ncol = 4)
 
 # generate values of a multinomial distribution of responses given Theta
@@ -147,13 +152,14 @@ theta_h <- matrix(
                    w_ans = ans)) 
 
 # make list of our experiment data
-sim_exp_list <-  list(N_obs = nrow(sim_exp),
+sim_exp_list <-  list(onlyprior = 0,
+                      N_obs = nrow(sim_exp),
                       w_ans = sim_exp$w_ans,
                       N_subj = max(sim_exp$subj),
                       subj = sim_exp$subj,
                       complexity = sim_exp$complexity)
 ```
-
+#### fit model
 ```{r sim hierarchical model, message=FALSE}
 
 # get STAN model
@@ -178,14 +184,15 @@ traceplot(mpt_hierarch_sim, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q",
 # posterior predictive checks for simulated data
 as.data.frame(mpt_hierarch_sim) %>%
   select(r, alpha_p, beta_p, alpha_q, beta_q) %>%
-  mcmc_recover_hist(true = c(r_true, alpha_p, beta_p, alpha_q, beta_q)) 
+  mcmc_recover_hist(true = c(r_true, alpha_p, beta_p, alpha_q, beta_q)) +
+  coord_cartesian(xlim = c(0, 1.5))
 
 ```
 
-It looks like we converge, and recover the parameters wuite well, with the exception of alpha_p.
+It looks like we converge, and recover the parameters quite well, with the exception of alpha_p.
 
 
-# Hierarchical Multinomial Processing Tree Model
+### Hierarchical Multinomial Processing Tree Model ON REAL DATA
 ```{r hierarchical model, message=FALSE}
 # HIERARCHICAL Stan Model --------------------------------------------------
 
@@ -200,7 +207,8 @@ N_obs <- N_item * N_subj
                w_ans = data$outcome)) 
 
 # make list of our experiment data
-exp_list_h <-  list(N_obs = nrow(exp),
+exp_list_h <-  list(onlyprior = 0,
+                    N_obs = nrow(exp),
                     w_ans = exp$w_ans,
                     N_subj = max(exp$subj),
                     subj = exp$subj,
@@ -214,24 +222,14 @@ print(mpt_hierarch,
 # see if we converged:
 traceplot(mpt_hierarch)
 ```
-# Prior Predictive Analysis of Hiererchical Model
-```{r prior checks, message=FALSE}
-# PRIOR PREDICTIVE CHECKS ------------------------------------------------------
 
-
-
-
-```
-
-# Posterior Predictive Check of Hiererchical Model
-
+### Posterior Predictive Checks of Hierarchical Model
 ```{r posterior, message=FALSE}
 # TEST POSTERIOR PREDICTIVE CHECK 
 # ------------------------------------------------------------------------------
-
 as.data.frame(mpt_hierarch) %>%
   select(r, alpha_p, beta_p, alpha_q, beta_q) %>%
-  mcmc_recover_hist(true = c(r_true, alpha_p_true, beta_p_true, alpha_q_true, beta_q_true)) 
+  mcmc_recover_hist(true = c(0.25, -1, 7, -0.5, 4))
 
 # bar plot as posterior predictive check
 gen_data <- rstan::extract(mpt_hierarch)$pred_w_ans
@@ -239,7 +237,15 @@ ppc_bars(exp$w_ans, gen_data) +
   ggtitle ("Hierarchical model") 
 
 # same but grouped by subject, doesn't really look like anything now with this many subjects
-ppc_bars_grouped(exp$w_ans, 
-                 gen_data, group = exp$subj) +
-  ggtitle ("By-subject plot for the hierarchical model")
+temp <- head(unique(exp$subj), 10)
+exp_subset <- exp[exp$subj%in%temp,]
+
+dim(exp)
+dim(exp_subset)
+dim(gen_data)
+
+
+#ppc_bars_grouped(exp$w_ans, 
+#                 gen_data, group = exp$subj) +
+#  ggtitle ("By-subject plot for the hierarchical model")
 ```

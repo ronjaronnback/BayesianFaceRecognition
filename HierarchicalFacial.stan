@@ -46,10 +46,10 @@ transformed parameters {
     theta[n,1] = 1 - p;
     // Correct
     theta[n,2] = p*q;
-    // Recognised Not Named
-    theta[n,3] = p * (1 - q) * (1 - r);
     // Recognised Not Named, but Tip of The Tongue
-    theta[n,4] = p * (1 - q) * r;
+    theta[n,3] = p * (1 - q) * r;
+    // Recognised Not Named
+    theta[n,4] = p * (1 - q) * (1 - r);
   }
 }
 model {
