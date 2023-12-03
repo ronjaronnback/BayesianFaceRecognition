@@ -121,8 +121,13 @@ N_obs <- N_item * N_subj
 subj <- rep(1:N_subj, each = N_item)
 trial_number <- rep(1:N_item, time = N_subj)
 # make approximate distribution for complexity (fame) and center it
+old_complexity <- rep(rlnorm(N_item, meanlog = 0, sdlog = 1), times = N_subj)
 complexity <- min_max_scale(scale(rep(rlnorm(N_item, meanlog = 0, sdlog = 1), 
                                       times = N_subj),center=TRUE)) - 0.5
+length(old_complexity)
+dim(old_complexity)
+length(complexity)
+dim(complexity)
 
 # define simulated true parameters
 r_true <- 0.23
@@ -170,11 +175,6 @@ sim_exp_list <-  list(onlyprior = 0,
 ```
 #### Fit model
 ```{r sim hierarchical model, message=FALSE}
-
-dim(sim_exp$complexity)
-dim(as.array(sim_exp$complexity))
-dim(complexity)
-
 # get STAN model
 mpt_hierarch_sim <- stan("HierarchicalFacial.stan", data = sim_exp_list)
 
