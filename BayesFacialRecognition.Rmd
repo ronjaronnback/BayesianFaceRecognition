@@ -171,6 +171,10 @@ sim_exp_list <-  list(onlyprior = 0,
 #### Fit model
 ```{r sim hierarchical model, message=FALSE}
 
+dim(sim_exp$complexity)
+dim(as.array(sim_exp$complexity))
+dim(complexity)
+
 # get STAN model
 mpt_hierarch_sim <- stan("HierarchicalFacial.stan", data = sim_exp_list)
 
