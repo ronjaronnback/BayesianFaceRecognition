@@ -227,7 +227,7 @@ traceplot(mpt_hierarch)
 # ------------------------------------------------------------------------------
 as.data.frame(mpt_hierarch) %>%
   select(r, alpha_p, beta_p, alpha_q, beta_q) %>%
-  mcmc_recover_hist(true = c(0.25, -1, 7, -0.5, 4))
+  mcmc_recover_hist(true = c(0.25, 2.5, 7, 1.5, 4))
 
 # bar plot as posterior predictive check
 gen_data <- rstan::extract(mpt_hierarch)$pred_w_ans
