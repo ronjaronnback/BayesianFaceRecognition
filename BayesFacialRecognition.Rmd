@@ -17,7 +17,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # set the working directory here for the entire notebook
 #knitr::opts_knit$set(root.dir = ("/Users/ronjaronnback/Documents/GitHub/BayesianFaceRecognition"))
- knitr::opts_knit$set(root.dir = '("C:/Users/louis/Documents/University/Master (TiU)/Year 2/Courses/BayesModels/FacialRec/BayesianFaceRecognition')
+knitr::opts_knit$set(root.dir = '("C:/Users/louis/Documents/University/Master (TiU)/Year 2/Courses/BayesModels/FacialRec/BayesianFaceRecognition')
 ```
 
 ```{r imports, include=FALSE, echo=FALSE}
@@ -110,6 +110,9 @@ as.data.frame(fit_face) %>%
   coord_cartesian(xlim = c(0, 1))
 
 print(fit_face, pars = c("theta")) # nice & close to the derived "true" values!
+
+# remove model because otherwise Ronja's laptop crashes
+remove(fit_face)
 ```
 
 ### Hierarchical Multinomial Processing Tree Model ON SIMULATED DATA
@@ -127,6 +130,8 @@ complexity <- min_max_scale(rep(rlnorm(N_item, meanlog = 0, sdlog = 1),
 
 # define simulated true parameters
 r_true <- 0.23
+p_true <- .58
+q_true <- .66
 
 tau_u_p <- 1.1
 u_p <- rnorm(N_subj, 0, tau_u_p)
@@ -188,6 +193,11 @@ as.data.frame(mpt_hierarch_sim) %>%
 ```
 
 It looks like we converge, and recover the parameters quite well, with the exception of alpha_p.
+
+```{r sim hierarchical model, message=FALSE, echo=FALSE}
+# remove model because otherwise Ronja's laptop crashes
+remove(mpt_hierarch_sim)
+```
 
 
 ### Hierarchical Multinomial Processing Tree Model ON REAL DATA
