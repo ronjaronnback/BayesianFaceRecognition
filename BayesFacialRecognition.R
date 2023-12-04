@@ -103,8 +103,8 @@ N_obs <- N_item * N_subj
 subj <- rep(1:N_subj, each = N_item)
 trial_number <- rep(1:N_item, time = N_subj)
 # make approximate distribution for complexity (fameousness) and center it
-complexity <- min_max_scale(scale(rep(rlnorm(N_item, meanlog = 0, sdlog = 1), 
-                                      times = N_subj),center=TRUE)) - 0.5
+complexity <- min_max_scale(rep(rlnorm(N_item, meanlog = 0, sdlog = 1), 
+                                      times = N_subj)) - 0.5
 
 # define simulated true parameters
 r_true <- 0.23
@@ -222,6 +222,14 @@ mpt_hierarch <- stan("HierarchicalFacial.stan", data = exp_list_h)
 
 print(mpt_hierarch,
       pars = c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
+# OUT:
+#          mean se_mean   sd 2.5%  25%  50%  75% 97.5% n_eff Rhat
+# r        0.23    0.00 0.02 0.20 0.22 0.23 0.24  0.27  6508    1
+# tau_u[1] 0.81    0.00 0.07 0.69 0.77 0.81 0.86  0.96  1771    1
+# alpha_p  2.51    0.00 0.13 2.26 2.42 2.51 2.60  2.75  2321    1
+# beta_p   6.91    0.01 0.30 6.34 6.69 6.90 7.11  7.50  3077    1
+# alpha_q  1.63    0.00 0.09 1.46 1.57 1.63 1.69  1.81  3333    1
+# beta_q   4.06    0.00 0.27 3.52 3.87 4.06 4.24  4.61  3570    1
 
 # see if we converged:
 traceplot(mpt_hierarch, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
