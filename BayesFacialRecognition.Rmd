@@ -10,7 +10,7 @@ output: html_document
 ## Facial Recognition of Public Figures
 By Anita Vrins, Ronja Ronnback, and Louis Sillekens
 
-In this rmarkdown document the code of our project is located. Some comments exist, but for a better explanation read our separate report.
+In this rmarkdown document the code of our project is located. Some comments exist, but for a better explanation, please read our separate report.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -121,6 +121,7 @@ N_obs <- N_item * N_subj
 subj <- rep(1:N_subj, each = N_item)
 trial_number <- rep(1:N_item, time = N_subj)
 # make approximate distribution for complexity (fame) and center it
+<<<<<<< Updated upstream
 old_complexity <- rep(rlnorm(N_item, meanlog = 0, sdlog = 1), times = N_subj)
 complexity <- min_max_scale(scale(rep(rlnorm(N_item, meanlog = 0, sdlog = 1), 
                                       times = N_subj),center=TRUE)) - 0.5
@@ -128,6 +129,10 @@ length(old_complexity)
 dim(old_complexity)
 length(complexity)
 dim(complexity)
+=======
+complexity <- min_max_scale(rep(rlnorm(N_item, meanlog = 0, sdlog = 1), 
+                                      times = N_subj)) - 0.5
+>>>>>>> Stashed changes
 
 # define simulated true parameters
 r_true <- 0.23
