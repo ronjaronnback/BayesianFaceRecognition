@@ -262,6 +262,123 @@ ppc_bars_grouped(exp$w_ans,
 
 
 # ==============================================================================
+# HIERARCHICAL Stan Model ROUND 2
+# ==============================================================================
+
+N_item <- 20 # number trials per subject
+N_subj <- 176 # number of subjects
+N_obs <- N_item * N_subj 
+
+# HIERARCHICAL Stan Model WITH SIMULATED DATA ----------------------------------
+
+subj <- rep(1:N_subj, each = N_item)
+trial_number <- rep(1:N_item, time = N_subj)
+# make approximate distribution for complexity (fameousness) and center it
+complexity <- min_max_scale(rep(rlnorm(N_item, meanlog = 0, sdlog = 1), 
+                                times = N_subj)) - 0.5
+
+# define simulated true parameters
+r_true <- 0.23
+
+tau_u_p <- 1.1
+u_p <- rnorm(N_subj, 0, tau_u_p)
+p_true_u <- qlogis(p_true) + u_p[subj]
+alpha_p <- 0
+beta_p <- 1
+p_true <- plogis(alpha_p + p_true_u + complexity*beta_p)
+
+tau_u_q <- 1.1
+u_q <- rnorm(N_subj, 0, tau_u_q)
+q_true_u <- qlogis(q_true) + u_q[subj]
+alpha_q <- 0
+beta_q <- 1
+q_true <- plogis(alpha_q + q_true_u + complexity * beta_q)
+
+# generate data vector of probabilities
+theta_h <- matrix(
+  c(NotRecognised(p_true, q_true, r_true),
+    RecognisedAndNamed(p_true, q_true, r_true),
+    TipOfTongue(p_true, q_true, r_true),
+    RecognisedNotNamed(p_true, q_true, r_true)),
+  ncol = 4)
+
+# generate values of a categorical distribution of responses given Theta
+(ans <- rcat(N_obs,theta_h))
+
+# make tibble of our real data
+(sim_exp <- tibble(subj = subj,
+                   item = trial_number,
+                   complexity = complexity,
+                   w_ans = ans)) 
+
+# make list of our experiment data
+sim_exp_list <-  list(onlyprior = 0,
+                      N_obs = nrow(sim_exp),
+                      w_ans = sim_exp$w_ans,
+                      N_subj = max(sim_exp$subj),
+                      subj = sim_exp$subj,
+                      complexity = sim_exp$complexity)
+# get STAN model
+mpt_hierarch_sim <- stan("HierarchicalFacial2.stan", data = sim_exp_list)
+
+print(mpt_hierarch_sim,
+      pars = c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
+# OUT:
+#          mean se_mean   sd  2.5%  25%  50%  75% 97.5% n_eff Rhat
+# r        0.26       0 0.02 0.23 0.25 0.26 0.27  0.29  5456 1.00
+# tau_u[1] 1.27       0 0.09 1.10 1.20 1.26 1.32  1.45   944 1.00
+# tau_u[2] 1.05       0 0.10 0.86 0.98 1.04 1.11  1.26  1595 1.00
+# alpha_p  0.37       0 0.12 0.14 0.29 0.37 0.45  0.62   729 1.01
+# beta_p   1.02       0 0.18 0.67 0.90 1.02 1.15  1.39  4212 1.00
+# alpha_q  0.46       0 0.12 0.23 0.38 0.46 0.55  0.70  1774 1.00
+# beta_q   0.84       0 0.22 0.42 0.69 0.84 0.98  1.28  4035 1.00
+# parameter recovery pretty good!
+
+# see if we converged: Looks good!
+traceplot(mpt_hierarch_sim, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
+
+# posterior predictive checks for simulated data
+as.data.frame(mpt_hierarch_sim) %>%
+  select(r, alpha_p, beta_p, alpha_q, beta_q) %>%
+  mcmc_recover_hist(true = c(r_true, alpha_p, beta_p, alpha_q, beta_q))
+
+# ==============================================================================
+# POSTERIOR CHECKS FOR HIERARCHICAL 2
+# ==============================================================================
+
+mcmc_hist(mpt_hierarch_sim, pars = c("r", "alpha_p", "beta_p", "alpha_q", "beta_q"))
+
+# bar plot as posterior predictive check of general model output
+gen_data <- rstan::extract(mpt_hierarch_sim)$pred_w_ans
+ppc_bars(sim_exp$w_ans, gen_data) +
+  ggtitle ("Hierarchical model") 
+
+# get posterior predictions for these 12 subjects only
+temp <- head(unique(sim_exp$subj), 12)
+exp_subset <- sim_exp[sim_exp$subj%in%temp,]
+ppc_bars_grouped(exp_subset$w_ans, 
+                 gen_data[,1:240], group = exp_subset$subj) +
+  ggtitle ("By-subject plot for the hierarchical model")
+
+# get ppd for fame tiers
+fame_tiers <- cut(data$C_TotalPageViews, breaks = 4, 
+                  labels = c("D-Tier", "C-Tier", "B-Tier", "A-Tier"), include.lowest = TRUE)
+# want frequency, not counts!
+ppc_bars_grouped(sim_exp$w_ans, gen_data, group = fame_tiers, freq = FALSE) + 
+  ggtitle ("Posterior predictive distributions for different tiers\nof fame")
+
+# get ppd for specific celebrities
+MJNAorNOT <- factor(ifelse(data$name=="Michael Jackson", "Michael Jackson", 
+                           ifelse(data$name=="Bob Dylan", "Bob Dylan", 
+                                  ifelse(data$name=="Steve Jobs", "Steve Jobs", 
+                                         "Other Celebrities"))))
+
+# want frequency, not counts!
+ppc_bars_grouped(sim_exp$w_ans, gen_data, group = MJNAorNOT, freq = FALSE) + 
+  ggtitle ("Plot for the hierarchical model for Michael Jackson, Bob Dylan or\nother celebrities")
+
+
+# ==============================================================================
 # SCRIBBLES AND SCRABBLES ------------------------------------------------------
 
 # plot results -- NEED TO HAVE "TRUE" VALUES to do what the book does in Chap 18.2.4, BUT FROM WHERE?

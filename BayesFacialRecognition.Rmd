@@ -99,7 +99,7 @@ N_trials <- 200
 (ans <- rmultinom(1, N_trials, c(Theta)))
 ```
 #### Fit Base MPT Model
-```{r base model, message=FALSE}
+```{r base model, message=TRUE}
 # BASE Stan Model --------------------------------------------------------------
 
 data_face <-  list(N_trials = N_trials,
@@ -152,21 +152,19 @@ alpha_p <- 0
 beta_p <- 1
 p_true <- plogis(alpha_p + p_true_u + complexity*beta_p)
 
+tau_u_q <- 1.1
+u_q <- rnorm(N_subj, 0, tau_u_q)
+q_true_u <- qlogis(q_true) + u_q[subj]
 alpha_q <- 0
 beta_q <- 1
-q_true <- plogis(alpha_q + complexity * beta_q)
-
-theta_NR <- NotRecognised(p_true, q_true, r_true)
-theta_C <- RecognisedAndNamed(p_true, q_true, r_true)
-theta_TT <- TipOfTongue(p_true, q_true, r_true)
-theta_RNN <- RecognisedNotNamed(p_true, q_true, r_true)
+q_true <- plogis(alpha_q + q_true_u + complexity * beta_q)
 
 # generate data vector of probabilities
 theta_h <- matrix(
-  c(theta_NR,
-    theta_C,
-    theta_TT,
-    theta_RNN),
+  c(NotRecognised(p_true, q_true, r_true),
+    RecognisedAndNamed(p_true, q_true, r_true),
+    TipOfTongue(p_true, q_true, r_true),
+    RecognisedNotNamed(p_true, q_true, r_true)),
   ncol = 4)
 
 # generate values of a multinomial distribution of responses given Theta
@@ -191,7 +189,7 @@ sim_exp_list <-  list(onlyprior = 0,
 We now fit the model, this may take some time:
 ```{r sim hierarchical model, message=FALSE}
 # get STAN model
-mpt_hierarch_sim <- stan("HierarchicalFacial.stan", data = sim_exp_list)
+mpt_hierarch_sim <- stan("HFR_Improved.stan", data = sim_exp_list)
 ```
 
 Let's see the output:
@@ -243,7 +241,7 @@ exp_list_h <-  list(onlyprior = 0,
                     subj = exp$subj,
                     complexity = exp$complexity)
 # get STAN model
-mpt_hierarch <- stan("HierarchicalFacial.stan", data = exp_list_h)
+mpt_hierarch <- stan("HFR_Improved.stan", data = exp_list_h)
 ```
 
 Let's see the output:
@@ -297,13 +295,11 @@ ppc_bars_grouped(exp_subset$w_ans,
 
 
 ```
-We see that, while the model does quite well for many of the subjects, it doesn't fully manage to capture subjects that recognise and correctly name a lot of items (outcome 2) - this is particularly evident for subjects 1, 2, 3 and 5. This means that the model fails to some degree. A potential fix might be incorporating more information about the subjects in the model (as a tentative guess, older participants might recognise more celebrities in general compared to younger subjects, for instance).
+TO BE CORRECTED : We see that, while the model does quite well for many of the subjects, it doesn't fully manage to capture subjects that recognise and correctly name a lot of items (outcome 2) - this is particularly evident for subjects 1, 2, 3 and 5. This means that the model fails to some degree. A potential fix might be incorporating more information about the subjects in the model (as a tentative guess, older participants might recognise more celebrities in general compared to younger subjects, for instance).
 
 Now, we plot the posterior predictive distributions for four different tiers of fame of the dataset: either those individuals with the highest total page views (A-tier), until those with the least total page views (D-tier). The breaks are equidistant.
 
 ```{r posterior fame, message=FALSE}
-
-between <- function(number,bounds) { number > min(bounds) & number < max(bounds)}
 
 # MAKE POSTERIOR CHECK FOR FAMOUS OR NOT FAMOUS PEOPLE
 fame_tiers <- cut(data$C_TotalPageViews, breaks = 4, 
@@ -311,7 +307,7 @@ fame_tiers <- cut(data$C_TotalPageViews, breaks = 4,
 
 # want frequency, not counts!
 ppc_bars_grouped(exp$w_ans, gen_data, group = fame_tiers, freq = FALSE) + 
-  ggtitle ("Posterior predictive distributions for different tiers of fame")
+  ggtitle ("Posterior predictive distributions for different tiers\nof fame")
 
 
 ```
@@ -333,11 +329,9 @@ ppc_bars_grouped(exp$w_ans, gen_data, group = MJNAorNOT, freq = FALSE) +
 
 
 ```
-As we can see, Michael Jackson is correctly named in the vast majority of cases. For Bob Dylan, the posterior predictive distribution becomes slightly less accurate: the margins only barely contain the actual data for outcomes 1, 2 and 4, and do not cover the actual data for option 3. It is worth noting that this may be due to the fact that items with a lower total page views were, by design, presented less frequently during the experiment, and that there are therefore not as many datapoints for less famous individuals in the dataset.
+TO BE CORRECTED : As we can see, Michael Jackson is correctly named in the vast majority of cases. For Bob Dylan, the posterior predictive distribution becomes slightly less accurate: the margins only barely contain the actual data for outcomes 1, 2 and 4, and do not cover the actual data for option 3. It is worth noting that this may be due to the fact that items with a lower total page views were, by design, presented less frequently during the experiment, and that there are therefore not as many datapoints for less famous individuals in the dataset. For Steve Jobs, we also see a mismatch - his total page view score is 0.52, but the rate of recognition and naming (outcome 2) is higher than what the model expects. 
 
-For Steve Jobs, we also see a mismatch - his total page view score is 0.52, but the rate of recognition and naming (outcome 2) is higher than what the model expects. 
-
-In general, it thus seems like the model is well able to generate outcomes that generally match the true outcome distribution, but that it misfits for cases in the middle. Our current hypothesis for this is that, since the total page views metric is exponentially distributed, the current model misses the mark on the "in-between" celebrities. It's possible that an exponential regression would do a better job at fitting the data.
+TO BE CORRECTED : In general, it thus seems like the model is well able to generate outcomes that generally match the true outcome distribution, but that it misfits for cases in the middle. Our current hypothesis for this is that, since the total page views metric is exponentially distributed, the current model misses the mark on the "in-between" celebrities. It's possible that an exponential regression would do a better job at fitting the data.
 
 
 
