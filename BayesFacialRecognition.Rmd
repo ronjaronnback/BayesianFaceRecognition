@@ -183,7 +183,7 @@ traceplot(mpt_hierarch_sim, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q",
 
 # posterior predictive checks for simulated data
 as.data.frame(mpt_hierarch_sim) %>%
-  select(r, alpha_p, beta_p, alpha_q, beta_q) %>%
+  select(r, tau_u[1], alpha_p, beta_p, alpha_q, beta_q) %>%
   mcmc_recover_hist(true = c(r_true, alpha_p, beta_p, alpha_q, beta_q))
 ```
 
@@ -222,6 +222,11 @@ traceplot(mpt_hierarch)
 ```
 
 ### Posterior Predictive Checks of Hierarchical Model
+
+ NR  - 1 - "I did not recognise the person"
+ C   - 2 - "I got it right"                            
+ TT  - 3 - "I got it wrong, but the correct name was “on the tip of my tongue”"
+ RNN - 4 - "I recognised the person, but I could not remember their name"   
 ```{r posterior, message=FALSE}
 # TEST POSTERIOR PREDICTIVE CHECK 
 # ------------------------------------------------------------------------------
@@ -256,8 +261,9 @@ dim(gen_data)
 fame<- factor(ifelse(data$C_TotalPageViews>0, "Very Famous", "Less Famous"))
 
 # want frequency, not counts!
-ppc_bars_grouped(exp$w_ans, gen_data, group = fame, freq = FALSE) + 
-  ggtitle ("Plot for the hierarchical model for famous or less famous items")
+ppc_bars_grouped(sim_exp$w_ans, gen_data, group = fame, freq = FALSE) + 
+  ggtitle ("Plot for the hierarchical model for famous or less famous items") +
+  xaxis_text(c("NR", "C","ToT","RNN"))
 
 
 ```

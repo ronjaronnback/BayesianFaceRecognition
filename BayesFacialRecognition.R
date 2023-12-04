@@ -111,7 +111,7 @@ r_true <- 0.23
 
 tau_u_p <- 1.1
 u_p <- rnorm(N_subj, 0, tau_u_p)
-p_true_u <- plogis(qlogis(p_true) + u_p[subj]) 
+p_true_u <- qlogis(p_true) + u_p[subj]
 alpha_p <- 0
 beta_p <- 1
 p_true <- plogis(alpha_p + p_true_u + complexity*beta_p)
