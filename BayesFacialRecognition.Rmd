@@ -121,25 +121,16 @@ N_obs <- N_item * N_subj
 subj <- rep(1:N_subj, each = N_item)
 trial_number <- rep(1:N_item, time = N_subj)
 # make approximate distribution for complexity (fame) and center it
-<<<<<<< Updated upstream
-old_complexity <- rep(rlnorm(N_item, meanlog = 0, sdlog = 1), times = N_subj)
-complexity <- min_max_scale(scale(rep(rlnorm(N_item, meanlog = 0, sdlog = 1), 
-                                      times = N_subj),center=TRUE)) - 0.5
-length(old_complexity)
-dim(old_complexity)
-length(complexity)
-dim(complexity)
-=======
+
 complexity <- min_max_scale(rep(rlnorm(N_item, meanlog = 0, sdlog = 1), 
                                       times = N_subj)) - 0.5
->>>>>>> Stashed changes
 
 # define simulated true parameters
 r_true <- 0.23
 
 tau_u_p <- 1.1
 u_p <- rnorm(N_subj, 0, tau_u_p)
-p_true_u <- plogis(qlogis(p_true) + u_p[subj]) 
+p_true_u <- qlogis(p_true) + u_p[subj]
 alpha_p <- 0
 beta_p <- 1
 p_true <- plogis(alpha_p + p_true_u + complexity*beta_p)
@@ -253,8 +244,38 @@ dim(exp)
 dim(exp_subset)
 dim(gen_data)
 
+# subset data & preds in the same direction (if only 200 data rows, make sure to remove COLUMNS in gen_data to match 200!)
 
 #ppc_bars_grouped(exp$w_ans, 
 #                 gen_data, group = exp$subj) +
 #  ggtitle ("By-subject plot for the hierarchical model")
 ```
+```{r posterior fame, message=FALSE}
+
+# MAKE POSTERIOR CHECK FOR FAMOUS OR NOT FAMOUS PEOPLE
+fame<- factor(ifelse(data$C_TotalPageViews>0, "Very Famous", "Less Famous"))
+
+# want frequency, not counts!
+ppc_bars_grouped(exp$w_ans, gen_data, group = fame, freq = FALSE) + 
+  ggtitle ("Plot for the hierarchical model for famous or less famous items")
+
+
+```
+
+
+```{r posterior fame, message=FALSE}
+
+# MAKE POSTERIOR CHECK FOR FAMOUS OR NOT FAMOUS PEOPLE
+MJNAorNOT <- factor(ifelse(data$name=="Michael Jackson", "Michael Jackson", 
+                         ifelse(data$name=="Neil Armstrong", "Neil Armstrong", 
+                         "Other Celebrities")))
+
+# want frequency, not counts!
+ppc_bars_grouped(sim_exp$w_ans, gen_data, group = MJNAorNOT, freq = FALSE) + 
+  ggtitle ("Plot for the hierarchical model for Michael Jackson, Neil Armstrong or other celebrities")
+
+
+```
+
+
+

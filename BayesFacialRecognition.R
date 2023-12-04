@@ -154,9 +154,14 @@ mpt_hierarch_sim <- stan("HierarchicalFacial.stan", data = sim_exp_list)
 
 print(mpt_hierarch_sim,
       pars = c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
-# OUT: 
-#          mean se_mean   sd 2.5%  25%  50%  75% 97.5% n_eff Rhat
-# 
+# OUT:
+#          mean se_mean   sd  2.5%  25%  50%  75% 97.5% n_eff Rhat
+# r        0.23       0 0.01  0.21 0.23 0.23 0.24  0.26  5919    1
+# tau_u[1] 0.13       0 0.07  0.01 0.07 0.12 0.18  0.26   771    1
+# alpha_p  0.59       0 0.05  0.49 0.55 0.59 0.62  0.68  3766    1
+# beta_p   1.09       0 0.14  0.83 1.00 1.09 1.18  1.36  3782    1
+# alpha_q  0.04       0 0.05 -0.07 0.00 0.03 0.07  0.14  4097    1
+# beta_q   1.02       0 0.15  0.74 0.92 1.02 1.12  1.32  3699    1
 # parameter recovery pretty good! Only alpha_p different
 
 # see if we converged: Looks good!
