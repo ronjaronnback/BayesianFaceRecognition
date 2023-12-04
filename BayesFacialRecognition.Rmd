@@ -37,6 +37,13 @@ rstan_options(auto_write = FALSE)
 ```
 
 ### Load the data
+
+We load the data and do some general preprocessing, as well as declaring the functions for each tree outcome:
+* NR  - 1 - "I did not recognise the person"
+* C   - 2 - "I got it right"                            
+* TT  - 3 - "I got it wrong, but the correct name was “on the tip of my tongue”"
+* RNN - 4 - "I recognised the person, but I could not remember their name"
+
 ```{r load data, message=FALSE}
 # Load Data ---------------------------------------------------------------
 data <-read.csv("data/outcome_data.csv")
@@ -47,10 +54,6 @@ min_max_scale <- function(x){(x-min(x))/(max(x) - min(x))}
 # min-max scale and center data on 0
 data$C_TotalPageViews <- min_max_scale(data$TotalPageViews) - 0.5
 
-```
-
-### Base Multinomial Processing Tree Model 
-```{r preprocessing, message=FALSE}
 # Find probabilities for each branch --------------------------------------
 value_counts <- table(data$outcome)
 value_counts 
@@ -72,7 +75,12 @@ TipOfTongue <- function(p,q,r) #TT
 
 RecognisedNotNamed <- function(p,q,r) #RNN
   p * (1 - q) * (1 - r)
+```
 
+### Base Multinomial Processing Tree Model 
+
+First, we examine the simple MPT model, on synthetic data:
+```{r preprocessing, message=FALSE}
 # Creating a Dataframe -------------------------------------------------
 
 theta_NR <- NotRecognised(p_true, q_true, r_true)
@@ -115,7 +123,11 @@ print(fit_face, pars = c("theta")) # nice & close to the derived "true" values!
 remove(fit_face)
 ```
 
+
 ### Hierarchical Multinomial Processing Tree Model ON SIMULATED DATA
+
+What follows is the hierarchical MPT model, fitted on simulated data to test for parameter recovery. True values are defined through estimates, but we generally leave it quite open (for example, we take no firm stance to how strong the beta's should be, but we expect them to be positive).
+
 ```{r simulated data preparation, message=FALSE}
 N_item <- 20 # number trials per subject
 N_subj <- 176 # number of subjects
@@ -175,6 +187,8 @@ sim_exp_list <-  list(onlyprior = 0,
                       complexity = sim_exp$complexity)
 ```
 #### Fit model
+
+We now fit the model, this may take some time:
 ```{r sim hierarchical model, message=FALSE}
 # get STAN model
 mpt_hierarch_sim <- stan("HierarchicalFacial.stan", data = sim_exp_list)
@@ -205,6 +219,9 @@ remove(mpt_hierarch_sim)
 
 
 ### Hierarchical Multinomial Processing Tree Model ON REAL DATA
+
+In the following section we proceed to fit the model on the actual data. 
+
 ```{r hierarchical model, message=FALSE}
 # HIERARCHICAL Stan Model --------------------------------------------------
 
@@ -238,69 +255,89 @@ print(mpt_hierarch,
 # see if we converged:
 traceplot(mpt_hierarch)
 ```
+We see that the chains converge, luckily, and the Rhat values are all quite acceptable. Our r-value is verly close or identical to what was estimated from previous calculations of the tree. The regression slopes using fame (through total Wikipedia page views) are all strongly positive, indicating a strong positive influence of fame on the branches - as expected, the more famous an individual is, the higher the chance that they are recognised (branch p) and correctly named (branch q).
 
 ### Posterior Predictive Checks of Hierarchical Model
 
- NR  - 1 - "I did not recognise the person"
- C   - 2 - "I got it right"                            
- TT  - 3 - "I got it wrong, but the correct name was “on the tip of my tongue”"
- RNN - 4 - "I recognised the person, but I could not remember their name"
+We here plot various posterior predictive checks of our model. As a brief reminder, the outcome options are coded as follows:
+
+* NR  - 1 - "I did not recognise the person"
+* C   - 2 - "I got it right"                            
+* TT  - 3 - "I got it wrong, but the correct name was “on the tip of my tongue”"
+* RNN - 4 - "I recognised the person, but I could not remember their name"
  
 ```{r posterior, message=FALSE}
 # TEST POSTERIOR PREDICTIVE CHECK 
 # ------------------------------------------------------------------------------
 mcmc_hist(mpt_hierarch, pars = c("r", "alpha_p", "beta_p", "alpha_q", "beta_q"))
 
-# as.data.frame(mpt_hierarch) %>%
-#   select(r, alpha_p, beta_p, alpha_q, beta_q) %>%
-#   mcmc_recover_hist(true = c(0.25, 2.5, 7, 1.5, 4))
-
 # bar plot as posterior predictive check
 gen_data <- rstan::extract(mpt_hierarch)$pred_w_ans
 ppc_bars(exp$w_ans, gen_data) +
   ggtitle ("Hierarchical model") 
 
-# same but grouped by subject, doesn't really look like anything now with this many subjects
-temp <- head(unique(exp$subj), 10)
+```
+
+Concerning the posterior distributions, we observe quite large beta's for both p (not recognised versus recognised branch) and q (correctly named versus recognised but not correctly named branch) - as mentioned, this is as expected, since we assumed that fame would strongly positively influence both recognition and naming.
+
+Regarding the posterior predictive distribution, we also see that the model generally fits the outcomes quit splendidly!
+
+Moving on, we visualise how the model fares not globally, but for individual subjects:
+
+```{r posterior per subj, message=FALSE}
+
+# get subset of 12 subjects (for pretty & readable graph)
+temp <- head(unique(exp$subj), 12)
 exp_subset <- exp[exp$subj%in%temp,]
 
-dim(exp)
-dim(exp_subset)
-dim(gen_data)
+# get posterior predictions for these 12 subjects only
+ppc_bars_grouped(exp_subset$w_ans, 
+                 gen_data[,1:240], group = exp_subset$subj) +
+  ggtitle ("By-subject plot for the hierarchical model")
 
-# subset data & preds in the same direction (if only 200 data rows, make sure to remove COLUMNS in gen_data to match 200!)
 
-#ppc_bars_grouped(exp$w_ans, 
-#                 gen_data, group = exp$subj) +
-#  ggtitle ("By-subject plot for the hierarchical model")
 ```
+We see that, while the model does quite well for many of the subjects, it doesn't fully manage to capture subjects that recognise and correctly name a lot of items (outcome 2) - this is particularly evident for subjects 1, 2, 3 and 5. This means that the model fails to some degree. A potential fix might be incorporating more information about the subjects in the model (as a tentative guess, older participants might recognise more celebrities in general compared to younger subjects, for instance).
+
+Now, we plot the posterior predictive distributions for four different tiers of fame of the dataset: either those individuals with the highest total page views (A-tier), until those with the least total page views (D-tier). The breaks are equidistant.
+
 ```{r posterior fame, message=FALSE}
+
+between <- function(number,bounds) { number > min(bounds) & number < max(bounds)}
 
 # MAKE POSTERIOR CHECK FOR FAMOUS OR NOT FAMOUS PEOPLE
-fame<- factor(ifelse(data$C_TotalPageViews>0, "Very Famous", "Less Famous"))
+fame_tiers <- cut(data$C_TotalPageViews, breaks = 4, 
+                  labels = c("D-Tier", "C-Tier", "B-Tier", "A-Tier"), include.lowest = TRUE)
 
 # want frequency, not counts!
-ppc_bars_grouped(exp$w_ans, gen_data, group = fame, freq = FALSE) + 
-  ggtitle ("Plot for the hierarchical model for famous or less famous items")# +
-  #xaxis_text(c("NR", "C","ToT","RNN"))
+ppc_bars_grouped(exp$w_ans, gen_data, group = fame_tiers, freq = FALSE) + 
+  ggtitle ("Posterior predictive distributions for different tiers of fame")
 
 
 ```
+As we see, the posterior predictive distributions for the A & B-tier group are showing a significantly higher proportion of correctly named items (outcome 2 on the x-axis). This is in line with expectations - the more famous the person presented, the more likely it is that they'll be recognised and correctly named. Generally, the model does quite a good job, and the lower the tier, the lower the proportion of outcomes 2.
 
+Let's plot the posterior predictive distributions for the most famous individual in the dataset (Michael Jackson, with total page views being the maximum possible, 1), a "mid-tier celebrity", in this case Bob Dylan, with a total page views of 0.2. The posterior predictive distribution for all other celebrities is visualised for the sake of comparison.
 
-```{r posterior fame, message=FALSE}
+```{r posterior celebrity comparison, message=FALSE}
 
 # MAKE POSTERIOR CHECK FOR FAMOUS OR NOT FAMOUS PEOPLE
 MJNAorNOT <- factor(ifelse(data$name=="Michael Jackson", "Michael Jackson", 
-                         ifelse(data$name=="Neil Armstrong", "Neil Armstrong", 
-                         "Other Celebrities")))
+                         ifelse(data$name=="Bob Dylan", "Bob Dylan", 
+                         ifelse(data$name=="Steve Jobs", "Steve Jobs", 
+                         "Other Celebrities"))))
 
 # want frequency, not counts!
 ppc_bars_grouped(exp$w_ans, gen_data, group = MJNAorNOT, freq = FALSE) + 
-  ggtitle ("Plot for the hierarchical model for Michael Jackson, Neil Armstrong or other celebrities")
+  ggtitle ("Plot for the hierarchical model for Michael Jackson, Bob Dylan or\nother celebrities")
 
 
 ```
+As we can see, Michael Jackson is correctly named in the vast majority of cases. For Bob Dylan, the posterior predictive distribution becomes slightly less accurate: the margins only barely contain the actual data for outcomes 1, 2 and 4, and do not cover the actual data for option 3. It is worth noting that this may be due to the fact that items with a lower total page views were, by design, presented less frequently during the experiment, and that there are therefore not as many datapoints for less famous individuals in the dataset.
+
+For Steve Jobs, we also see a mismatch - his total page view score is 0.52, but the rate of recognition and naming (outcome 2) is higher than what the model expects. 
+
+In general, it thus seems like the model is well able to generate outcomes that generally match the true outcome distribution, but that it misfits for cases in the middle. Our current hypothesis for this is that, since the total page views metric is exponentially distributed, the current model misses the mark on the "in-between" celebrities. It's possible that an exponential regression would do a better job at fitting the data.
 
 
 
