@@ -156,13 +156,13 @@ print(mpt_hierarch_sim,
       pars = c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
 # OUT:
 #          mean se_mean   sd  2.5%  25%  50%  75% 97.5% n_eff Rhat
-# r        0.23       0 0.01  0.21 0.23 0.23 0.24  0.26  5919    1
-# tau_u[1] 0.13       0 0.07  0.01 0.07 0.12 0.18  0.26   771    1
-# alpha_p  0.59       0 0.05  0.49 0.55 0.59 0.62  0.68  3766    1
-# beta_p   1.09       0 0.14  0.83 1.00 1.09 1.18  1.36  3782    1
-# alpha_q  0.04       0 0.05 -0.07 0.00 0.03 0.07  0.14  4097    1
-# beta_q   1.02       0 0.15  0.74 0.92 1.02 1.12  1.32  3699    1
-# parameter recovery pretty good! Only alpha_p different
+# r         0.22       0 0.01  0.20  0.21  0.22 0.23  0.25  7672    1
+# tau_u[1]  1.28       0 0.09  1.12  1.22  1.27 1.34  1.46  1529    1
+# alpha_p   0.34       0 0.11  0.13  0.27  0.34 0.41  0.55  1106    1
+# beta_p    0.98       0 0.12  0.74  0.89  0.98 1.07  1.21  8413    1
+# alpha_q  -0.03       0 0.05 -0.13 -0.06 -0.03 0.00  0.07  8434    1
+# beta_q    0.98       0 0.14  0.70  0.88  0.98 1.08  1.26  7204    1
+# parameter recovery pretty good!
 
 # see if we converged: Looks good!
 traceplot(mpt_hierarch_sim, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
@@ -195,13 +195,13 @@ mpt_hierarch_prior <- stan("HierarchicalFacial.stan", data = exp_list_h,
 print(mpt_hierarch_prior,
       pars = c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
 
-#           mean se_mean   sd  2.5%   25%   50%  75% 97.5% n_eff Rhat
-# r         0.50    0.00 0.22  0.10  0.33  0.50 0.67  0.90  5964    1
-# tau_u[1]  0.80    0.01 0.61  0.04  0.32  0.65 1.16  2.24  6130    1
-# alpha_p   0.01    0.02 1.47 -2.93 -0.94  0.03 0.99  2.93  7291    1
-# beta_p   -0.03    0.01 1.03 -2.07 -0.71  0.00 0.67  1.96  5511    1
-# alpha_q  -0.01    0.02 1.47 -2.90 -0.98 -0.03 0.96  2.84  6585    1
-# beta_q   -0.01    0.01 0.99 -1.90 -0.68 -0.01 0.65  1.96  6312    1
+#          mean se_mean   sd  2.5%   25%   50%  75% 97.5% n_eff Rhat
+# r        0.23    0.00 0.02 0.20 0.22 0.23 0.24  0.27  5084    1
+# tau_u[1] 0.82    0.00 0.07 0.69 0.77 0.81 0.86  0.96  1442    1
+# alpha_p  2.51    0.00 0.13 2.26 2.42 2.51 2.59  2.77  1641    1
+# beta_p   6.91    0.01 0.30 6.33 6.70 6.90 7.11  7.51  2239    1
+# alpha_q  1.63    0.00 0.09 1.45 1.57 1.63 1.69  1.81  2773    1
+# beta_q   4.05    0.01 0.27 3.52 3.87 4.05 4.23  4.60  2746    1
 
 # see if we converged:
 traceplot(mpt_hierarch_prior, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
