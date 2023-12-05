@@ -251,10 +251,10 @@ mpt_hierarch <- stan("HFR_Improved.stan", data = exp_list_h)
 Let's see the output:
 
 ```{r hierarchical model output, message=FALSE}
-print(mpt_hierarch)
+print(mpt_hierarch, pars = c("alpha_p", "beta_p", "alpha_q", "beta_q", "r", "tau_u"))
 
 # see if we converged:
-traceplot(mpt_hierarch_prior) +
+traceplot(mpt_hierarch) +
   ggtitle("Traceplot of Prior Hierarchical Model on Actual Data") +
   theme(plot.title = element_text(size = 12))
 
