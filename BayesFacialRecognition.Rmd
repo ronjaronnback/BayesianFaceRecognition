@@ -17,7 +17,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # set the working directory here for the entire notebook
 #knitr::opts_knit$set(root.dir = ("/Users/ronjaronnback/Documents/GitHub/BayesianFaceRecognition"))
-knitr::opts_knit$set(root.dir = '("C:/Users/louis/Documents/University/Master (TiU)/Year 2/Courses/BayesModels/FacialRec/BayesianFaceRecognition')
+#knitr::opts_knit$set(root.dir = '("C:/Users/louis/Documents/University/Master (TiU)/Year 2/Courses/BayesModels/FacialRec/BayesianFaceRecognition')
 ```
 
 ```{r imports, include=FALSE, echo=FALSE}
@@ -187,7 +187,7 @@ sim_exp_list <-  list(onlyprior = 0,
 #### Fit model
 
 We now fit the model, this may take some time:
-```{r sim hierarchical model, message=FALSE}
+```{r sim hierarchical model fit, message=FALSE}
 # get STAN model
 mpt_hierarch_sim <- stan("HFR_Improved.stan", data = sim_exp_list)
 ```
@@ -210,7 +210,7 @@ as.data.frame(mpt_hierarch_sim) %>%
 
 It looks like we converge, and recover the parameters quite well.
 
-```{r sim hierarchical model, message=FALSE, echo=FALSE}
+```{r sim hierarchical model remove, message=FALSE, echo=FALSE}
 # remove model because otherwise Ronja's laptop crashes
 remove(mpt_hierarch_sim)
 ```
@@ -295,7 +295,6 @@ ppc_bars_grouped(exp_subset$w_ans,
 
 
 ```
-TO BE CORRECTED : We see that, while the model does quite well for many of the subjects, it doesn't fully manage to capture subjects that recognise and correctly name a lot of items (outcome 2) - this is particularly evident for subjects 1, 2, 3 and 5. This means that the model fails to some degree. A potential fix might be incorporating more information about the subjects in the model (as a tentative guess, older participants might recognise more celebrities in general compared to younger subjects, for instance).
 
 Now, we plot the posterior predictive distributions for four different tiers of fame of the dataset: either those individuals with the highest total page views (A-tier), until those with the least total page views (D-tier). The breaks are equidistant.
 
@@ -329,9 +328,7 @@ ppc_bars_grouped(exp$w_ans, gen_data, group = MJNAorNOT, freq = FALSE) +
 
 
 ```
-TO BE CORRECTED : As we can see, Michael Jackson is correctly named in the vast majority of cases. For Bob Dylan, the posterior predictive distribution becomes slightly less accurate: the margins only barely contain the actual data for outcomes 1, 2 and 4, and do not cover the actual data for option 3. It is worth noting that this may be due to the fact that items with a lower total page views were, by design, presented less frequently during the experiment, and that there are therefore not as many datapoints for less famous individuals in the dataset. For Steve Jobs, we also see a mismatch - his total page view score is 0.52, but the rate of recognition and naming (outcome 2) is higher than what the model expects. 
 
-TO BE CORRECTED : In general, it thus seems like the model is well able to generate outcomes that generally match the true outcome distribution, but that it misfits for cases in the middle. Our current hypothesis for this is that, since the total page views metric is exponentially distributed, the current model misses the mark on the "in-between" celebrities. It's possible that an exponential regression would do a better job at fitting the data.
 
 
 
