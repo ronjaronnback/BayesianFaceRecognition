@@ -34,6 +34,7 @@ transformed parameters {
   array[N_obs] simplex[4] theta;
   // reparametrization stuff
   array[2] vector[N_subj] u;
+  
   for(i in 1:2)
     u[i] = z[i] * tau_u[i];
   
@@ -59,11 +60,11 @@ model {
   target += normal_lpdf(alpha_q | 0, 1.5); //
   target += normal_lpdf(beta_q | 0, 1); //
 
-  
   // variance per subject
   for(n in 1:2)
     target += std_normal_lpdf(z[n]);
-    target += normal_lpdf(tau_u | 0, 1) - 2 * normal_lccdf(0 | 0, 1); // truncated
+  
+  target += normal_lpdf(tau_u | 0, 1) - 2 * normal_lccdf(0 | 0, 1); // truncated
   
   if (!onlyprior)
     for(n in 1:N_obs)

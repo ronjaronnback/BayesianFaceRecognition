@@ -19,7 +19,7 @@ min_max_scale <- function(x){(x-min(x))/(max(x) - min(x))}
 # Load Data ---------------------------------------------------------------
 
 # just for ronja's laptop shenanigans
-#setwd("/Users/ronjaronnback/Documents/GitHub/BayesianFaceRecognition")
+setwd("/Users/ronjaronnback/Documents/GitHub/BayesianFaceRecognition")
 
 #data <-read.csv("data/outcome_data.csv")
 #data <-read.csv("outcome_data.csv")
@@ -30,9 +30,6 @@ data <-read.csv("data/outcome_data.csv")
 # center and min-max scale data
 data$C_TotalPageViews <- min_max_scale(data$TotalPageViews) - 0.5
 
-# ==============================================================================
-# BASE Stan Model 
-# ==============================================================================
 # Find probabilities for each branch --------------------------------------
 value_counts <- table(data$outcome)
 value_counts 
@@ -54,6 +51,10 @@ TipOfTongue <- function(p,q,r) #TT
 
 RecognisedNotNamed <- function(p,q,r) #RNN
   p * (1 - q) * (1 - r)
+
+# ==============================================================================
+# BASE Stan Model 
+# ==============================================================================
 
 # Creating a Dataframe -------------------------------------------------
 
@@ -107,40 +108,38 @@ complexity <- min_max_scale(rep(rlnorm(N_item, meanlog = 0, sdlog = 1),
                                       times = N_subj)) - 0.5
 
 # define simulated true parameters
+p_true <- 0.58
+q_true <- 0.66
 r_true <- 0.23
 
-tau_u_p <- 1.1
-u_p <- rnorm(N_subj, 0, tau_u_p)
-p_true_u <- qlogis(p_true) + u_p[subj]
-alpha_p <- 0
+tau_u <- c(1.1,1.1)
+u <- matrix(nrow = N_subj,ncol = 2)
+u[,1:2] <- c(rnorm(N_subj, 0, tau_u[1]), rnorm(N_subj, 0, tau_u[2]))
+
+alpha_p <- 0.5
 beta_p <- 1
-p_true <- plogis(alpha_p + p_true_u + complexity*beta_p)
+p_true <- plogis(alpha_p + u[subj,1] + complexity * beta_p)
 
 alpha_q <- 0
 beta_q <- 1
-q_true <- plogis(alpha_q + complexity * beta_q)
-
-theta_NR <- NotRecognised(p_true, q_true, r_true)
-theta_C <- RecognisedAndNamed(p_true, q_true, r_true)
-theta_TT <- TipOfTongue(p_true, q_true, r_true)
-theta_RNN <- RecognisedNotNamed(p_true, q_true, r_true)
+q_true <- plogis(alpha_q + u[subj,2] + complexity * beta_q)
 
 # generate data vector of probabilities
 theta_h <- matrix(
-  c(theta_NR,
-    theta_C,
-    theta_TT,
-    theta_RNN),
+  c(NotRecognised(p_true, q_true, r_true),
+    RecognisedAndNamed(p_true, q_true, r_true),
+    TipOfTongue(p_true, q_true, r_true),
+    RecognisedNotNamed(p_true, q_true, r_true)),
   ncol = 4)
 
 # generate values of a categorical distribution of responses given Theta
-(ans <- rcat(N_obs,theta_h))
+ans <- rcat(N_obs,theta_h)
 
 # make tibble of our real data
-(sim_exp <- tibble(subj = subj,
+sim_exp <- tibble(subj = subj,
                    item = trial_number,
                    complexity = complexity,
-                   w_ans = ans)) 
+                   w_ans = ans)
 
 # make list of our experiment data
 sim_exp_list <-  list(onlyprior = 0,
@@ -150,27 +149,36 @@ sim_exp_list <-  list(onlyprior = 0,
                       subj = sim_exp$subj,
                       complexity = sim_exp$complexity)
 # get STAN model
-mpt_hierarch_sim <- stan("HierarchicalFacial.stan", data = sim_exp_list)
+mpt_hierarch_sim <- stan("HFR_Improved.stan", data = sim_exp_list)
 
 print(mpt_hierarch_sim,
       pars = c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
 # OUT:
 #          mean se_mean   sd  2.5%  25%  50%  75% 97.5% n_eff Rhat
-# r         0.22       0 0.01  0.20  0.21  0.22 0.23  0.25  7672    1
-# tau_u[1]  1.28       0 0.09  1.12  1.22  1.27 1.34  1.46  1529    1
-# alpha_p   0.34       0 0.11  0.13  0.27  0.34 0.41  0.55  1106    1
-# beta_p    0.98       0 0.12  0.74  0.89  0.98 1.07  1.21  8413    1
-# alpha_q  -0.03       0 0.05 -0.13 -0.06 -0.03 0.00  0.07  8434    1
-# beta_q    0.98       0 0.14  0.70  0.88  0.98 1.08  1.26  7204    1
+#r        0.22       0 0.01  0.19  0.21 0.22 0.22  0.24  6073    1
+# tau_u[1] 1.13       0 0.08  0.98  1.08 1.13 1.19  1.30  1167    1
+# tau_u[2] 1.02       0 0.09  0.85  0.95 1.02 1.08  1.21  1294    1
+# alpha_p  0.59       0 0.11  0.39  0.52 0.59 0.67  0.81  1109    1
+# beta_p   1.21       0 0.17  0.89  1.09 1.21 1.33  1.54  5333    1
+# alpha_q  0.02       0 0.11 -0.20 -0.05 0.02 0.09  0.23  1705    1
+# beta_q   0.86       0 0.19  0.48  0.73 0.86 1.00  1.23  5250    1
 # parameter recovery pretty good!
 
 # see if we converged: Looks good!
-traceplot(mpt_hierarch_sim, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
+traceplot(mpt_hierarch_sim) +
+  ggtitle("Traceplot of Hierarchical Model on Simulated Data") + 
+  theme(plot.title = element_text(size = 12))
 
 # posterior predictive checks for simulated data
 as.data.frame(mpt_hierarch_sim) %>%
   select(r, alpha_p, beta_p, alpha_q, beta_q) %>%
-  mcmc_recover_hist(true = c(r_true, alpha_p, beta_p, alpha_q, beta_q))
+  mcmc_recover_hist(true = c(r_true, alpha_p, beta_p, alpha_q, beta_q)) +
+  ggtitle("Posterior Predictive Distributions of the Hierarchical Model \non Simulated Data") + 
+  theme(plot.title = element_text(size = 12))
+
+remove(mpt_hierarch_sim)
+remove(sim_exp)
+remove(sim_exp_list)
 
 # Prior predictive check with REAL DATA ----------------------------------------
 
@@ -188,7 +196,7 @@ exp_list_h <-  list(onlyprior = 1,
                     subj = exp$subj,
                     complexity = exp$complexity)
 
-mpt_hierarch_prior <- stan("HierarchicalFacial.stan", data = exp_list_h,
+mpt_hierarch_prior <- stan("HFR_Improved.stan", data = exp_list_h,
                      control = list(adapt_delta = 0.9))
 
 
@@ -196,15 +204,11 @@ print(mpt_hierarch_prior,
       pars = c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
 
 #          mean se_mean   sd  2.5%   25%   50%  75% 97.5% n_eff Rhat
-# r        0.23    0.00 0.02 0.20 0.22 0.23 0.24  0.27  5084    1
-# tau_u[1] 0.82    0.00 0.07 0.69 0.77 0.81 0.86  0.96  1442    1
-# alpha_p  2.51    0.00 0.13 2.26 2.42 2.51 2.59  2.77  1641    1
-# beta_p   6.91    0.01 0.30 6.33 6.70 6.90 7.11  7.51  2239    1
-# alpha_q  1.63    0.00 0.09 1.45 1.57 1.63 1.69  1.81  2773    1
-# beta_q   4.05    0.01 0.27 3.52 3.87 4.05 4.23  4.60  2746    1
+
 
 # see if we converged:
-traceplot(mpt_hierarch_prior, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
+traceplot(mpt_hierarch_prior) +
+  ggtitle("Traceplot of Prior Hierarchical Model on Actual Data")
 
 
 # HIERARCHICAL Stan Model WITH REAL DATA ---------------------------------------
@@ -223,21 +227,24 @@ exp_list_h <-  list(onlyprior = 0,
                     subj = exp$subj,
                     complexity = exp$complexity)
 # get STAN model
-mpt_hierarch <- stan("HierarchicalFacial.stan", data = exp_list_h)
+mpt_hierarch <- stan("HFR_Improved.stan", data = exp_list_h)
 
 print(mpt_hierarch,
       pars = c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
 # OUT:
 #          mean se_mean   sd 2.5%  25%  50%  75% 97.5% n_eff Rhat
-# r        0.23    0.00 0.02 0.20 0.22 0.23 0.24  0.27  6508    1
-# tau_u[1] 0.81    0.00 0.07 0.69 0.77 0.81 0.86  0.96  1771    1
-# alpha_p  2.51    0.00 0.13 2.26 2.42 2.51 2.60  2.75  2321    1
-# beta_p   6.91    0.01 0.30 6.34 6.69 6.90 7.11  7.50  3077    1
-# alpha_q  1.63    0.00 0.09 1.46 1.57 1.63 1.69  1.81  3333    1
-# beta_q   4.06    0.00 0.27 3.52 3.87 4.06 4.24  4.61  3570    1
+# r        0.23    0.00 0.02 0.20 0.22 0.23 0.24  0.27  5385    1
+# tau_u[1] 0.82    0.00 0.07 0.69 0.77 0.81 0.86  0.95  1600    1
+# tau_u[2] 0.94    0.00 0.09 0.76 0.87 0.93 0.99  1.13  1548    1
+# alpha_p  2.51    0.00 0.13 2.26 2.42 2.51 2.59  2.77  1566    1
+# beta_p   6.90    0.01 0.31 6.31 6.69 6.90 7.12  7.50  2401    1
+# alpha_q  1.88    0.00 0.13 1.64 1.80 1.88 1.97  2.14  1736    1
+# beta_q   5.02    0.01 0.32 4.40 4.81 5.02 5.24  5.66  2599    1
 
 # see if we converged:
-traceplot(mpt_hierarch, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
+traceplot(mpt_hierarch) +
+  ggtitle("Traceplot of Hierarchical Model on Actual Data") + 
+  theme(plot.title = element_text(size = 12))
 
 
 # TEST POSTERIOR PREDICTIVE CHECK ----------------------------------------------
@@ -262,37 +269,63 @@ ppc_bars_grouped(exp$w_ans,
 
 
 # ==============================================================================
-# HIERARCHICAL Stan Model ROUND 2
+# POSTERIOR CHECKS FOR HIERARCHICAL 2
 # ==============================================================================
 
 N_item <- 20 # number trials per subject
 N_subj <- 176 # number of subjects
 N_obs <- N_item * N_subj 
-
 # HIERARCHICAL Stan Model WITH SIMULATED DATA ----------------------------------
-
 subj <- rep(1:N_subj, each = N_item)
 trial_number <- rep(1:N_item, time = N_subj)
 # make approximate distribution for complexity (fameousness) and center it
 complexity <- min_max_scale(rep(rlnorm(N_item, meanlog = 0, sdlog = 1), 
                                 times = N_subj)) - 0.5
-
 # define simulated true parameters
+p_true <- 0.58
+q_true <- 0.66
 r_true <- 0.23
+
+# tau_u_p <- 1.1
+# u_p <- rnorm(N_subj, 0, tau_u_p)
+# p_true_u <- qlogis(p_true) + u_p[subj]
+# alpha_p <- 0.5
+# beta_p <- 1
+# p_true <- plogis(alpha_p + p_true_u + complexity*beta_p)
+# 
+# tau_u_q <- 1.1
+# u_q <- rnorm(N_subj, 0, tau_u_q)
+# q_true_u <- qlogis(q_true) + u_q[subj]
+# alpha_q <- 0.5
+# beta_q <- 1
+# q_true <- plogis(alpha_q + q_true_u + complexity * beta_q)
+
+# tau_u_p <- 1.1
+# u_p <- rnorm(N_subj, 0, tau_u_p)
+# #p_true_u <- qlogis(p_true) + u_p[subj]
+# alpha_p <- 0.5
+# beta_p <- 1
+# p_true <- plogis(qlogis(alpha_p) + u_p[subj] + complexity*beta_p)
+# 
+# tau_u_q <- 1.1
+# u_q <- rnorm(N_subj, 0, tau_u_q)
+# #q_true_u <- qlogis(q_true) + u_q[subj]
+# alpha_q <- 0.5
+# beta_q <- 1
+# q_true <- plogis(qlogis(alpha_q)  + u_q[subj] + complexity * beta_q)
 
 tau_u_p <- 1.1
 u_p <- rnorm(N_subj, 0, tau_u_p)
-p_true_u <- qlogis(p_true) + u_p[subj]
-alpha_p <- 0
+alpha_p <- 0.5
 beta_p <- 1
-p_true <- plogis(alpha_p + p_true_u + complexity*beta_p)
+p_true <- plogis(alpha_p + u_p[subj] + complexity*beta_p)
 
 tau_u_q <- 1.1
 u_q <- rnorm(N_subj, 0, tau_u_q)
-q_true_u <- qlogis(q_true) + u_q[subj]
-alpha_q <- 0
+alpha_q <- 0.5
 beta_q <- 1
-q_true <- plogis(alpha_q + q_true_u + complexity * beta_q)
+q_true <- plogis(alpha_q  + u_q[subj] + complexity * beta_q)
+
 
 # generate data vector of probabilities
 theta_h <- matrix(
@@ -301,16 +334,13 @@ theta_h <- matrix(
     TipOfTongue(p_true, q_true, r_true),
     RecognisedNotNamed(p_true, q_true, r_true)),
   ncol = 4)
-
 # generate values of a categorical distribution of responses given Theta
-(ans <- rcat(N_obs,theta_h))
-
+ans <- rcat(N_obs,theta_h)
 # make tibble of our real data
-(sim_exp <- tibble(subj = subj,
+sim_exp <- tibble(subj = subj,
                    item = trial_number,
                    complexity = complexity,
-                   w_ans = ans)) 
-
+                   w_ans = ans)
 # make list of our experiment data
 sim_exp_list <-  list(onlyprior = 0,
                       N_obs = nrow(sim_exp),
@@ -319,32 +349,14 @@ sim_exp_list <-  list(onlyprior = 0,
                       subj = sim_exp$subj,
                       complexity = sim_exp$complexity)
 # get STAN model
-mpt_hierarch_sim <- stan("HierarchicalFacial2.stan", data = sim_exp_list)
-
+mpt_hierarch_sim <- stan("HFR.stan", data = sim_exp_list)
 print(mpt_hierarch_sim,
       pars = c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
-# OUT:
-#          mean se_mean   sd  2.5%  25%  50%  75% 97.5% n_eff Rhat
-# r        0.26       0 0.02 0.23 0.25 0.26 0.27  0.29  5456 1.00
-# tau_u[1] 1.27       0 0.09 1.10 1.20 1.26 1.32  1.45   944 1.00
-# tau_u[2] 1.05       0 0.10 0.86 0.98 1.04 1.11  1.26  1595 1.00
-# alpha_p  0.37       0 0.12 0.14 0.29 0.37 0.45  0.62   729 1.01
-# beta_p   1.02       0 0.18 0.67 0.90 1.02 1.15  1.39  4212 1.00
-# alpha_q  0.46       0 0.12 0.23 0.38 0.46 0.55  0.70  1774 1.00
-# beta_q   0.84       0 0.22 0.42 0.69 0.84 0.98  1.28  4035 1.00
-# parameter recovery pretty good!
-
-# see if we converged: Looks good!
-traceplot(mpt_hierarch_sim, pars=c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
 
 # posterior predictive checks for simulated data
 as.data.frame(mpt_hierarch_sim) %>%
   select(r, alpha_p, beta_p, alpha_q, beta_q) %>%
   mcmc_recover_hist(true = c(r_true, alpha_p, beta_p, alpha_q, beta_q))
-
-# ==============================================================================
-# POSTERIOR CHECKS FOR HIERARCHICAL 2
-# ==============================================================================
 
 mcmc_hist(mpt_hierarch_sim, pars = c("r", "alpha_p", "beta_p", "alpha_q", "beta_q"))
 
