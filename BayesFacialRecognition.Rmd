@@ -204,7 +204,7 @@ traceplot(mpt_hierarch_sim) +
 as.data.frame(mpt_hierarch_sim) %>%
   select(r, alpha_p, beta_p, alpha_q, beta_q) %>%
   mcmc_recover_hist(true = c(r_true, alpha_p, beta_p, alpha_q, beta_q)) +
-  ggtitle("Posterior Predictive Distributions of the Hierarchical Model \non Simulated Data") + 
+  ggtitle("Posterior Distributions of the Hierarchical Model \non Simulated Data") + 
   theme(plot.title = element_text(size = 12))
 ```
 
@@ -253,7 +253,7 @@ print(mpt_hierarch, pars = c("alpha_p", "beta_p", "alpha_q", "beta_q", "r", "tau
 
 # see if we converged:
 traceplot(mpt_hierarch) +
-  ggtitle("Traceplot of Prior Hierarchical Model on Actual Data") +
+  ggtitle("Traceplot of Hierarchical Model on Actual Data") +
   theme(plot.title = element_text(size = 12))
 
 ```
@@ -283,11 +283,11 @@ ppc_bars(exp$w_ans, gen_data) +
 
 ```
 
-Concerning the posterior distributions, we observe quite large beta's for both p (not recognised versus recognised branch) and q (correctly named versus recognised but not correctly named branch) - as mentioned, this is as expected, since we assumed that fame would strongly positively influence both recognition and naming.
+Concerning the posterior distributions, we observe quite large beta's for both p (not recognized versus recognized branch) and q (correctly named versus recognized but not correctly named branch) - as mentioned, this is as expected, since we assumed that fame would strongly positively influence both recognition and naming.
 
 Regarding the posterior predictive distribution, we also see that the model generally fits the outcomes quite splendidly!
 
-Moving on, we visualise how the model fares not globally, but for individual subjects:
+Moving on, we visualize how the model fares not globally, but for individual subjects:
 
 ```{r posterior per subj, message=FALSE}
 
@@ -320,9 +320,9 @@ ppc_bars_grouped(exp$w_ans, gen_data, group = fame_tiers, freq = FALSE) +
 
 ```
 
-As we see, the posterior predictive distributions for the A & B-tier group are showing a significantly higher proportion of correctly named items (outcome 2 on the x-axis). This is in line with expectations - the more famous the person presented, the more likely it is that they'll be recognised and correctly named. Generally, the model does quite a good job, and the lower the tier, the lower the proportion of outcomes 2.
+As we see, the posterior predictive distributions for the A & B-tier group are showing a significantly higher proportion of correctly named items (outcome 2 on the x-axis). This is in line with expectations - the more famous the person presented, the more likely it is that they'll be recognized and correctly named. Generally, the model does quite a good job, and the lower the tier, the lower the proportion of outcomes 2.
 
-Let's plot the posterior predictive distributions for the most famous individual in the dataset (Michael Jackson, with total page views being the maximum possible, 1), a "mid-tier celebrity", in this case Bob Dylan, with a total page views of 0.2. The posterior predictive distribution for all other celebrities is visualised for the sake of comparison.
+Let's plot the posterior predictive distributions for the most famous individual in the dataset (Michael Jackson, with total page views being the maximum possible, 1), a "mid-tier celebrity", in this case Bob Dylan, with a total page views of 0.2. The posterior predictive distribution for all other celebrities is visualized for the sake of comparison.
 
 ```{r posterior celebrity comparison, message=FALSE}
 
