@@ -1,14 +1,11 @@
 ---
-title: "BayesFacialRecognition"
+title: "Bayesian Modelling of Cognitive Processes Group Project"
 author: "Anita Vrins, Ronja Rönnback, Louis Sillekens"
 date: "2023-11-18"
 output: html_document
 ---
 
-# Bayesian Modelling of Cognitive Processes Group Project
-
 ## Facial Recognition of Public Figures
-By Anita Vrins, Ronja Ronnback, and Louis Sillekens
 
 In this rmarkdown document the code of our project is located. Some comments exist, but for a better explanation, please read our separate report.
 
@@ -40,10 +37,10 @@ rstan_options(auto_write = FALSE)
 
 We load the data and do some general preprocessing, as well as declaring the functions for each tree outcome:
 
-* NR    - 1 - "I did not recognise the person"
-* C     - 2 - "I got it right"                            
-* TT    - 3 - "I got it wrong, but the correct name was “on the tip of my tongue”"
-* RNN   - 4 - "I recognised the person, but I could not remember their name"
+* NR -- 1 - "I did not recognise the person"
+* C --- 2 - "I got it right"                            
+* TT -- 3 - "I got it wrong, but the correct name was “on the tip of my tongue”"
+* RNN - 4 - "I recognised the person, but I could not remember their name"
 
 ```{r load data, message=FALSE}
 # Load Data ---------------------------------------------------------------
@@ -119,11 +116,12 @@ as.data.frame(fit_face) %>%
   coord_cartesian(xlim = c(0, 1))
 
 print(fit_face, pars = c("theta")) # nice & close to the derived "true" values!
+```
 
+```{r remove base, message=FALSE, echo=FALSE}
 # remove model because otherwise Ronja's laptop crashes
 remove(fit_face)
 ```
-
 
 ### Hierarchical Multinomial Processing Tree Model ON SIMULATED DATA
 
@@ -165,7 +163,7 @@ theta_h <- matrix(
     RecognisedNotNamed(p_true, q_true, r_true)),
   ncol = 4)
 
-# generate values of a multinomial distribution of responses given Theta
+# generate values of a categorical distribution of responses given Theta
 ans <- rcat(N_obs,theta_h)
 
 # make tibble of our real data
@@ -195,7 +193,7 @@ Let's see the output:
 ```{r sim hierarchical model output, message=FALSE}
 print(mpt_hierarch_sim,
       pars = c("r", "tau_u", "alpha_p", "beta_p", "alpha_q", "beta_q"))
-# parameter recovery pretty good! Only alpha_p different
+# parameter recovery pretty good!
 
 # see if we converged: Looks good!
 traceplot(mpt_hierarch_sim) +
@@ -259,20 +257,20 @@ traceplot(mpt_hierarch) +
   theme(plot.title = element_text(size = 12))
 
 ```
+
 We see that the chains converge, luckily, and the Rhat values are all quite acceptable. Our r-value is verly close or identical to what was estimated from previous calculations of the tree. The regression slopes using fame (through total Wikipedia page views) are all strongly positive, indicating a strong positive influence of fame on the branches - as expected, the more famous an individual is, the higher the chance that they are recognised (branch p) and correctly named (branch q).
 
 ### Posterior Predictive Checks of Hierarchical Model
 
 We here plot various posterior predictive checks of our model. As a brief reminder, the outcome options are coded as follows:
 
-* NR    - 1 - "I did not recognise the person"
-* C     - 2 - "I got it right"                            
-* TT    - 3 - "I got it wrong, but the correct name was “on the tip of my tongue”"
-* RNN   - 4 - "I recognised the person, but I could not remember their name"
+* NR -- 1 - "I did not recognise the person"
+* C --- 2 - "I got it right"                            
+* TT -- 3 - "I got it wrong, but the correct name was “on the tip of my tongue”"
+* RNN - 4 - "I recognised the person, but I could not remember their name"
  
 ```{r posterior, message=FALSE}
-# TEST POSTERIOR PREDICTIVE CHECK 
-# ------------------------------------------------------------------------------
+
 mcmc_hist(mpt_hierarch, pars = c("r", "alpha_p", "beta_p", "alpha_q", "beta_q")) +
   ggtitle("Posterior Distribution of the Hierarchical Model") + 
   theme(plot.title = element_text(size = 12))
@@ -287,7 +285,7 @@ ppc_bars(exp$w_ans, gen_data) +
 
 Concerning the posterior distributions, we observe quite large beta's for both p (not recognised versus recognised branch) and q (correctly named versus recognised but not correctly named branch) - as mentioned, this is as expected, since we assumed that fame would strongly positively influence both recognition and naming.
 
-Regarding the posterior predictive distribution, we also see that the model generally fits the outcomes quit splendidly!
+Regarding the posterior predictive distribution, we also see that the model generally fits the outcomes quite splendidly!
 
 Moving on, we visualise how the model fares not globally, but for individual subjects:
 
@@ -306,7 +304,7 @@ ppc_bars_grouped(exp_subset$w_ans,
 
 ```
 
-Now, we plot the posterior predictive distributions for four different tiers of fame of the dataset: either those individuals with the highest total page views (A-tier), until those with the least total page views (D-tier). The breaks are equidistant.
+Now, we plot the posterior predictive distributions for four different tiers of fame in the dataset: either those individuals with the highest total page views (A-tier), until those with the least total page views (D-tier). The breaks are equidistant.
 
 ```{r posterior fame, message=FALSE}
 
@@ -321,6 +319,7 @@ ppc_bars_grouped(exp$w_ans, gen_data, group = fame_tiers, freq = FALSE) +
 
 
 ```
+
 As we see, the posterior predictive distributions for the A & B-tier group are showing a significantly higher proportion of correctly named items (outcome 2 on the x-axis). This is in line with expectations - the more famous the person presented, the more likely it is that they'll be recognised and correctly named. Generally, the model does quite a good job, and the lower the tier, the lower the proportion of outcomes 2.
 
 Let's plot the posterior predictive distributions for the most famous individual in the dataset (Michael Jackson, with total page views being the maximum possible, 1), a "mid-tier celebrity", in this case Bob Dylan, with a total page views of 0.2. The posterior predictive distribution for all other celebrities is visualised for the sake of comparison.
